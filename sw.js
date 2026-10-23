@@ -1,7 +1,7 @@
-const CACHE_NAME = 'my-tango-v7';
+const CACHE_NAME = 'my-tango-v11';
 const STATIC = [
   './', './index.html', './manifest.json',
-  './ejdict.js', './ejdict_supp.js', './jaen.js', './ejdict_pos.js', './cefr_j.js',
+  './ejdict.js', './ejdict_supp.js', './jaen.js', './ejdict_pos.js', './cefr_j.js', './exdict.js',
   './icons/icon-192.png', './icons/icon-512.png',
 ];
 self.addEventListener('install', e => {

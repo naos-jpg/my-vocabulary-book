@@ -38,6 +38,9 @@ body{
 body.dark{--bg:#1a1a2e;--card-bg:#16213e;--border:#2d4059;--primary:#e0e0e0;--muted:#888;--accent:#7c9ef8;}
 body.dark .auth-box,body.dark .panel,body.dark .reader-box,body.dark .camera-panel{background:var(--card-bg);}
 body.dark .card-inner{background:var(--card-bg);}
+body.dark .dict-ex{color:#d6d6e0;background:#1f2b4a;}
+body.dark .dict-exja{color:#a9b0c4;}
+body.dark .dict-def{color:#b8bfd0;}
 /* ベース幅 — モバイル (元の幅に戻す) */
 
 /* PC (≥769px): アプリ幅は600pxのまま。各コンテンツだけを大きくする */
@@ -204,7 +207,58 @@ select:focus{border-color:var(--accent)}
 .tabs{display:flex;background:#e0dcd5;padding:4px;border-radius:12px}
 .tab{flex:1;text-align:center;padding:9px 4px;font-size:0.72rem;font-weight:700;border-radius:9px;border:none;background:transparent;color:var(--muted);transition:all .15s}
 .tab.active{background:var(--card-bg);color:var(--primary);box-shadow:0 2px 5px var(--shadow)}
-.toggle-container{display:flex;justify-content:center;gap:8px}
+.toggle-container{display:flex;justify-content:center;gap:6px 8px;flex-wrap:wrap}
+@media (max-width:480px){ .sheet-label{display:none} }
+/* 1. 通知（どのタブでも見える） */
+#toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translate(-50%,20px);
+  background:rgba(26,26,46,.92);color:#fff;padding:10px 16px;border-radius:12px;font-size:0.82rem;font-weight:700;
+  max-width:min(92vw,520px);text-align:center;z-index:10000;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;line-height:1.5}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+body.dark #toast{background:rgba(124,158,248,.95);color:#10142a}
+/* 4. 穴埋め / 5. 書く */
+.cloze-box{font-size:1.15rem;font-weight:700;line-height:1.7;text-align:left;width:100%;padding:0 6px;color:var(--primary)}
+.cloze-blank{display:inline-block;min-width:3.2em;border-bottom:3px solid var(--accent);color:transparent;margin:0 2px}
+.cloze-ja{font-size:0.82rem;font-weight:400;color:var(--muted);margin-top:10px;line-height:1.6}
+.cloze-hint{font-size:0.75rem;color:var(--accent);margin-top:8px;font-weight:700}
+.spell-box{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;margin-top:14px}
+.spell-row{display:flex;gap:6px;width:100%;max-width:340px}
+.spell-input{flex:1;min-width:0;padding:10px 12px;font-size:1.05rem;border:2px solid var(--border);border-radius:10px;font-family:inherit;background:var(--card-bg);color:var(--primary);outline:none}
+.spell-input:focus{border-color:var(--accent)}
+.spell-btn{background:var(--primary);color:var(--card-bg);border:none;border-radius:10px;padding:0 14px;font-weight:700;font-size:0.82rem;white-space:nowrap}
+.back-sub{font-size:0.95rem;font-weight:700;white-space:pre-wrap;text-align:left;margin:6px 0 4px;padding-left:12px;color:var(--primary)}
+.spell-result{font-size:0.9rem;font-weight:900;text-align:center;margin-bottom:6px}
+.spell-ok{color:#16a34a}.spell-ng{color:#dc2626}
+/* 6. スワイプ評価の手応え */
+.card.swipe-ok{animation:swOk .28s ease-out}
+.card.swipe-ng{animation:swNg .28s ease-out}
+@keyframes swOk{0%{transform:rotateY(180deg) translateX(0)}50%{transform:rotateY(180deg) translateX(-28px);filter:drop-shadow(0 0 10px #22c55e)}100%{transform:rotateY(180deg) translateX(0)}}
+@keyframes swNg{0%{transform:rotateY(180deg) translateX(0)}50%{transform:rotateY(180deg) translateX(28px);filter:drop-shadow(0 0 10px #ef4444)}100%{transform:rotateY(180deg) translateX(0)}}
+/* 3. 一括登録 / 7. 全削除ダイアログ */
+.bulk-text{width:100%;min-height:120px;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:0.85rem;background:var(--bg);color:var(--primary);resize:vertical;box-sizing:border-box}
+.bulk-progress{font-size:0.78rem;color:var(--muted);margin-top:6px;min-height:1.2em}
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-ov.show{display:flex}
+.modal-box{background:var(--card-bg);color:var(--primary);border-radius:16px;padding:18px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.modal-box h3{font-size:1rem;margin:0 0 6px}
+.modal-box p{font-size:0.8rem;color:var(--muted);margin:0 0 12px;line-height:1.6}
+.modal-btn{display:block;width:100%;text-align:left;padding:11px 14px;margin-top:8px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);color:var(--primary);font-size:0.85rem;font-weight:700;font-family:inherit;cursor:pointer}
+.modal-btn small{display:block;font-weight:400;color:var(--muted);font-size:0.72rem;margin-top:2px}
+.modal-btn.danger{border-color:#fca5a5;color:#dc2626}
+.modal-btn:disabled{opacity:.45;cursor:not-allowed}
+.modal-cancel{text-align:center}
+/* 単元 */
+.unit-chip{display:inline-block;font-size:0.62rem;font-weight:700;color:#7c3aed;background:#f3e8ff;border-radius:6px;padding:0 6px;margin-right:4px;vertical-align:middle}
+body.dark .unit-chip{background:#3b2a5c;color:#d8b4fe}
+.unit-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+.unit-input{flex:1;min-width:0;padding:7px 10px;border:1.5px solid var(--border);border-radius:10px;font-size:0.83rem;font-family:inherit;background:var(--bg);color:var(--primary);outline:none}
+.share-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.share-btn{flex:1;min-width:90px;background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-size:0.78rem;font-weight:700;color:var(--primary);cursor:pointer;font-family:inherit}
+/* 聞き取り・例文読み上げ */
+.listen-box{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+.listen-title{font-size:1rem;font-weight:900;color:var(--primary)}
+.listen-play{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:12px 22px;font-size:1rem;font-weight:900;cursor:pointer;font-family:inherit}
+.ex-speak{background:none;border:1px solid var(--border);border-radius:8px;padding:0 6px;margin-left:4px;font-size:0.75rem;cursor:pointer;vertical-align:middle;color:var(--primary)}
+.auto-next{display:inline-block;margin-top:6px;background:var(--primary);color:var(--card-bg);border:none;border-radius:10px;padding:6px 14px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit}
 .toggle-btn{padding:7px 16px;font-size:0.76rem;font-weight:700;background:transparent;border:2px solid var(--border);border-radius:20px;transition:all .15s}
 .toggle-btn.active{background:var(--primary);color:white;border-color:var(--primary)}
 
@@ -257,6 +311,8 @@ select:focus{border-color:var(--accent)}
 .speak-btn.pulsing{border-color:var(--accent);color:var(--accent);animation:pulse .5s ease-in-out infinite alternate}
 @keyframes pulse{from{opacity:1}to{opacity:.3}}
 .flip-hint{position:absolute;bottom:11px;font-size:0.62rem;color:#ddd;letter-spacing:.07em}
+/* 裏面は内容が長くなりスクロールするので、案内は最後に置く（重ならないように） */
+.card-back .flip-hint{position:static;margin-top:auto;padding-top:10px;text-align:center;color:#c8c3ba}
 
 /* 裏面 */
 .meaning{
@@ -278,6 +334,9 @@ select:focus{border-color:var(--accent)}
 .dict-ipa{color:var(--accent);font-weight:700;font-size:1.1rem;margin-bottom:7px}
 .dict-def{font-style:italic;margin-bottom:8px;color:#555;line-height:1.55}
 .dict-ex{font-size:0.92rem;color:#555;background:var(--bg);padding:8px 12px;border-radius:8px;line-height:1.7;font-weight:500}
+.dict-exja{font-size:0.8rem;color:#888;font-weight:400;margin-top:3px;}
+.refetch-btn{display:block;margin:10px auto 0;background:none;border:1px solid var(--border);border-radius:8px;padding:3px 10px;font-size:0.68rem;color:var(--muted);cursor:pointer;}
+.refetch-btn:disabled{opacity:.5;}
 .dict-forms{font-size:0.78rem;color:#6366f1;margin-top:6px;}
 .dict-syn{font-size:0.78rem;color:#059669;margin-top:4px;}
 .dict-etym{font-size:0.78rem;color:#b45309;margin-top:4px;font-style:italic;}
@@ -514,10 +573,10 @@ textarea:focus{border-color:var(--accent);height:200px;box-shadow:0 0 0 3px rgba
       <div class="user-right">
         <span class="review-pill" id="review-pill">⏰ <span id="review-cnt">0</span>語</span>
         <a id="sheetLink" href="#" target="_blank"
-           style="display:none;font-size:0.68rem;color:var(--blue)">📊 Sheets</a>
+           style="display:none;font-size:0.68rem;color:var(--blue)" title="スプレッドシートを開く">📊<span class="sheet-label"> Sheets</span></a>
         <button class="logout-btn" onclick="toggleDark()" id="darkBtn" title="ダークモード">🌙</button>
         <button class="logout-btn" onclick="cycleFontSize()" id="fontBtn" title="文字サイズ変更">Aa</button>
-        <button class="logout-btn" onclick="resetProgress()" title="データリセット（分析タブで詳細設定）" style="color:#dc2626;">🔄</button>
+        <button class="logout-btn" onclick="resetStarsOnly()" title="⭐（習得済み）をリセット" style="color:#dc2626;">🔄</button>
         <button class="logout-btn" onclick="doLogout()">設定変更</button>
       </div>
     </div>
@@ -539,14 +598,30 @@ textarea:focus{border-color:var(--accent);height:200px;box-shadow:0 0 0 3px rgba
         <option value="My Words">⭐ マイ単語帳</option>
       </select>
     </div>
-    <div class="tabs">
-      <div class="tab active" id="tabAll"    onclick="setMode('all')">すべて</div>
-      <div class="tab"        id="tabUnseen" onclick="setMode('unseen')">未習得 ⭐</div>
-      <div class="tab"        id="tabReview" onclick="setMode('review')">要復習 ⏰</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="tabs" style="flex:1;">
+        <div class="tab active" id="tabAll"    onclick="setMode('all')">すべて</div>
+        <div class="tab"        id="tabUnseen" onclick="setMode('unseen')">未習得 ⭐</div>
+        <div class="tab"        id="tabReview" onclick="setMode('review')">要復習 ⏰</div>
+      </div>
+      <!-- 並び替え（学習デッキ） -->
+      <select id="sortOrder" onchange="idx=0;buildDeck();renderCard()" title="並び替え"
+        style="width:auto;flex:0 0 auto;font-size:0.72rem;font-weight:700;border:1.5px solid var(--border);border-radius:10px;
+               padding:8px 6px;background:var(--card-bg);color:var(--primary);cursor:pointer;">
+        <option value="date_desc">登録順↓</option>
+        <option value="date_asc">登録順↑</option>
+        <option value="alpha_asc">A→Z</option>
+        <option value="alpha_desc">Z→A</option>
+        <option value="cefr_asc">CEFR↑</option>
+        <option value="cefr_desc">CEFR↓</option>
+      </select>
     </div>
     <div class="toggle-container">
       <button class="toggle-btn active" id="dirEN" onclick="setDirection('en2jp')">🇬🇧 英 ➔ 日</button>
       <button class="toggle-btn"        id="dirJP" onclick="setDirection('jp2en')">🇯🇵 日 ➔ 英</button>
+      <button class="toggle-btn"        id="dirCL" onclick="setDirection('cloze')" title="例文の空欄に入る単語を答える">🧩 穴埋め</button>
+      <button class="toggle-btn"        id="dirSP" onclick="setDirection('spell')" title="日本語を見て英単語を書く">✍️ 書く</button>
+      <button class="toggle-btn"        id="dirLS" onclick="setDirection('listen')" title="音声を聞いて英単語を書く">🎧 聞き取り</button>
       <button class="toggle-btn" id="btnMistake" onclick="toggleMistakeMode()" title="ミスした単語のみ">😓 誤答</button>
     </div>
     <div class="prog-wrap">
@@ -561,17 +636,26 @@ textarea:focus{border-color:var(--accent);height:200px;box-shadow:0 0 0 3px rgba
           <div class="cefr-tag" id="cefrF">B1</div>
           <button class="star-btn" id="starBtn" onclick="toggleStar(event)">★</button>
           <div class="word" id="frontWord">-</div>
+          <div class="cloze-box" id="frontCloze" style="display:none"></div>
           <div class="pos"  id="frontPos"></div>
+          <div class="spell-box" id="spellBox" style="display:none" onclick="event.stopPropagation()">
+            <div class="spell-row">
+              <input id="spellInput" class="spell-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="英単語を入力">
+              <button class="spell-btn" onclick="checkSpell(event)">答え合わせ</button>
+            </div>
+          </div>
           <button class="speak-btn" id="speakFront" onclick="ev_speakFront(event)">🔊 発音する</button>
           <div class="flip-hint">タップしてひっくり返す</div>
           <button class="card-del-btn" onclick="deleteCurrentCard(event)">🗑 削除</button>
         </div>
         <div class="card-face card-back">
           <div class="cefr-tag" id="cefrB">B1</div>
+          <div class="spell-result" id="spellResult" style="display:none"></div>
           <div class="meaning" id="backMeaning">-</div>
+          <div class="back-sub" id="backSub" style="display:none"></div>
           <button class="speak-btn" id="speakBack" style="display:none" onclick="ev_speakBack(event)">🔊 発音する</button>
           <div class="dict-ext" id="dictExt"></div>
-          <div class="flip-hint">タップして戻る</div>
+          <div class="flip-hint" id="backHint">タップして戻る</div>
         </div>
       </div>
     </div>
@@ -679,6 +763,37 @@ textarea:focus{border-color:var(--accent);height:200px;box-shadow:0 0 0 3px rgba
       <div class="ocr-hint" id="ocrHint" style="display:none">↑ テキストから単語をドラッグ選択して追加できます</div>
     </div>
 
+    <!-- 3. 一括登録 -->
+    <div class="panel">
+      <h3>📋 まとめて登録 <span style="font-weight:400;font-size:0.75rem;color:var(--muted)">（1行に1語）</span></h3>
+      <textarea id="bulkText" class="bulk-text" placeholder="abandon&#10;stimulate&#10;state, 状態・述べる&#10;&#10;・英単語だけでもOK（訳は辞書から自動で付きます）&#10;・訳を指定する場合は「英単語, 訳」またはタブ区切り&#10;・番号付き（1. abandon）でもOK&#10;・共有された単語リストはそのまま貼り付けてOK"></textarea>
+      <div class="unit-row">
+        <span style="font-size:0.78rem;font-weight:700;white-space:nowrap">📁 単元名</span>
+        <input id="bulkUnit" class="unit-input" list="unitList" placeholder="例: Lesson 3 ／ 小テスト10月（任意）">
+        <datalist id="unitList"></datalist>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button class="add-btn" id="bulkBtn" onclick="bulkAdd()">まとめて登録</button>
+        <div class="bulk-progress" id="bulkProgress"></div>
+      </div>
+    </div>
+
+    <!-- 1. 単語リストの共有 -->
+    <div class="panel">
+      <h3>📤 単語リストを共有</h3>
+      <p style="font-size:0.75rem;color:var(--muted);margin:0 0 4px">書き出した文字を、相手の「まとめて登録」に貼り付けると同じ単語を登録できます。</p>
+      <div class="unit-row">
+        <select id="shareUnit" style="flex:1;padding:8px 10px;font-size:0.83rem;border-radius:10px"></select>
+        <label style="font-size:0.75rem;white-space:nowrap;display:flex;align-items:center;gap:4px"><input type="checkbox" id="shareWithMeaning" checked> 訳も含める</label>
+      </div>
+      <div class="share-row">
+        <button class="share-btn" onclick="shareWordList('copy')">📋 コピー</button>
+        <button class="share-btn" id="shareNativeBtn" onclick="shareWordList('share')">📨 共有</button>
+        <button class="share-btn" onclick="shareWordList('file')">💾 ファイル保存</button>
+      </div>
+      <textarea id="shareText" class="bulk-text" style="min-height:70px;margin-top:8px;display:none" readonly></textarea>
+    </div>
+
     <!-- 手動追加 -->
     <div class="panel">
       <h3>✏️ 手動で追加 <span style="font-weight:400;font-size:0.75rem;color:var(--muted)">（日本語訳は空でもOK→自動翻訳）</span></h3>
@@ -697,17 +812,6 @@ textarea:focus{border-color:var(--accent);height:200px;box-shadow:0 0 0 3px rgba
         <span>マイ単語帳</span>
         <div style="display:flex;align-items:center;gap:6px">
           <span id="myCount">0語</span>
-          <!-- 並び替え -->
-          <select id="sortOrder" onchange="buildDeck();renderCard()"
-            style="font-size:0.68rem;border:1.5px solid var(--border);border-radius:6px;
-                   padding:2px 5px;background:var(--card-bg);color:var(--primary);cursor:pointer;">
-            <option value="date_desc">登録順↓</option>
-            <option value="date_asc">登録順↑</option>
-            <option value="alpha_asc">A→Z</option>
-            <option value="alpha_desc">Z→A</option>
-            <option value="cefr_asc">CEFR↑</option>
-            <option value="cefr_desc">CEFR↓</option>
-          </select>
           <button id="btnSelMode" class="btn-sel-toggle" onclick="toggleSelMode()">☑ 選択</button>
           <button onclick="deleteAllMyWords()"
             style="background:#fff0f0;border:1.5px solid #fca5a5;color:#dc2626;
@@ -777,6 +881,13 @@ textarea:focus{border-color:var(--accent);height:200px;box-shadow:0 0 0 3px rgba
       </div>
     </div>
     <div class="panel">
+      <h3 style="margin:0 0 10px">📉 習得率の推移</h3>
+      <div id="masteryGraph" style="position:relative;height:90px;margin-bottom:4px;"></div>
+      <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--muted);">
+        <span>6日前</span><span>今日</span>
+      </div>
+    </div>
+    <div class="panel">
       <h3>🔄 データリセット</h3>
       <p style="font-size:0.78rem;color:var(--muted);margin:0 0 12px;">リセットする項目を選択してください。単語・意味は削除されません。</p>
       <div style="display:flex;flex-direction:column;gap:8px;">
@@ -804,6 +915,15 @@ textarea:focus{border-color:var(--accent);height:200px;box-shadow:0 0 0 3px rgba
                padding:8px 20px;font-size:0.83rem;font-weight:700;cursor:pointer;width:100%;margin-top:12px;">
         🔄 選択した項目をリセット
       </button>
+    </div>
+    <div class="panel">
+      <h3>💾 バックアップ</h3>
+      <p style="font-size:0.78rem;color:var(--muted);margin:0 0 10px;">単語・訳・学習記録・設定をまとめて1つのファイルに保存します。機種変更やブラウザのデータ削除に備えて、ときどき保存しておくと安心です。読み込むと、今の単語帳に統合されます（今のデータは消えません）。</p>
+      <div class="share-row">
+        <button class="share-btn" onclick="exportBackup()">⬇️ 書き出す</button>
+        <button class="share-btn" onclick="document.getElementById('backupFile').click()">⬆️ 読み込む</button>
+      </div>
+      <input type="file" id="backupFile" accept=".json,application/json" style="display:none" onchange="importBackup(this)">
     </div>
     <div class="panel">
       <h3>📤 エクスポート</h3>
@@ -869,6 +989,16 @@ function loadEJDict()   { return loadDict('ejdict.js'); }
 function loadEJPOS()    { return loadDict('ejdict_pos.js'); }
 function loadEJSupp()   { return loadDict('ejdict_supp.js'); }
 function loadJAENDict() { return loadDict('jaen.js'); }
+function loadEXDict()   { return loadDict('exdict.js'); }
+
+/* 例文辞書（オフライン）: 発音記号・例文・例文和訳 */
+async function exLookup(word) {
+  await loadEXDict();
+  const d = window.EXDICT; if (!d) return null;
+  const w = (word||'').trim();
+  const r = d[w] || d[w.toLowerCase()] || d[w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()];
+  return r ? { ipa: r.i||'', ex: r.e||'', exJa: r.j||'' } : null;
+}
 
 /* EJ 検索: メイン → 補完の順に探す。語尾変化も対応 */
 async function ejdictLookup(word) {
@@ -926,6 +1056,7 @@ let CARDS=[],deck=[],idx=0,mode='all',dir='en2jp',section='all',flipped=false;
 let GAS_EXEC_URL = '';
 let gasSheetUrl='';
 let gasReady = false;
+let gasVersion = 0;   // GAS のバージョン（5 以上で学習記録・全削除の拡張に対応）
 
 /* ── 同期キュー: 失敗した操作を保存→次回再送 ── */
 const SYNC_QUEUE_KEY = 'tango_sync_queue';
@@ -1017,7 +1148,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(!document.getElementById('selPopup').contains(e.target)) closePopup();
   });
 
-  setupCameraButton();
+  if (typeof setupCameraButton === "function") setupCameraButton();
 });
 
 function showScreen(n){
@@ -1103,6 +1234,7 @@ async function gasPost(body={}) {
   const params = { action: body.action || 'ping' };
   if (body.uid) params.uid = body.uid;
   if (body.row) params.row = body.row;
+  if (body.match) params.match = body.match;   // 行がずれていても単語名で探し直す（GAS v6）
   if (body.star !== undefined) params.star = body.star;
   // add: 個別フィールドで渡す（URLの長さ制限を避けるため）
   if (body.card) {
@@ -1117,6 +1249,7 @@ async function gasPost(body={}) {
     params.section = c.section || 'My Words';
     params.addedAt = c.addedAt || '';
     params.star    = c.star ? '1' : '0';
+    params.unit    = c.unit    || '';
   }
   if (body.cards) params.cards = JSON.stringify(body.cards);
   return await gasGet(params);
@@ -1146,29 +1279,43 @@ async function initGAS() {
   }
 
   gasReady    = true;
-  flushSyncQueue();  // キューに残った操作を再送
+  gasVersion  = res.version || 4;
+  await flushSyncQueue();  // キューに残った操作を先に再送（読み込み前に反映）
   gasSheetUrl = res.sheetUrl || '';
   updateAuthUI('接続済み ✅');
   updateSheetsUI('connected');
   await loadFromGAS();
+  syncProgress();
 }
 
 async function loadFromGAS() {
   const res = await gasGet({ action:'load' });
-  if(!res || !Array.isArray(res.cards) || !res.cards.length) return;
+  if(!res || !Array.isArray(res.cards)) return;
 
+  // 行番号が別のシートのものなら使わない（シートを切り替えた場合。消えたと誤判定しないため）
+  const rowsUrl = localStorage.getItem('tango_rows_url');
+  if (rowsUrl && rowsUrl !== GAS_EXEC_URL) CARDS.forEach(c=>{ delete c.gasRow; delete c.row; });
+  localStorage.setItem('tango_rows_url', GAS_EXEC_URL);
   // GASから来たカードをローカルと統合（GAS優先）
   const gasWords = new Set(res.cards.map(c=>c.word));
-  const localOnly = CARDS.filter(c=>!gasWords.has(c.word) && c.section==='My Words');
+  // シートにない端末の単語: 行番号あり＝別の端末で削除済み → 消す ／ 行番号なし＝未保存 → 残してシートへ送る
+  const localOnly = CARDS.filter(c=>!gasWords.has(c.word) && c.section==='My Words' && !c.gasRow);
+  const queued = new Set(getSyncQueue().map(op=>op.card && op.card.word).filter(Boolean));
+  const unsynced = localOnly.filter(c=>!queued.has(c.word));
 
+  // 端末側の単元（旧GASは単元を保存できないため）
+  const localUnit = new Map(CARDS.filter(c=>c.unit).map(c=>[c.word, c.unit]));
+  const needUnitPush = [];
   // IDを付与
   const imported = res.cards.map((c,i)=>({
     id: Date.now()+i,
     word: c.word, meaning: c.meaning, pos: c.pos||'',
     ipa: c.ipa||'', def: c.def||'', ex: c.ex||'',
     cefr: c.cefr||'B1', section: c.section||'My Words',
-    star: c.star, gasRow: c.row  // GASのrow番号を保持
+    star: c.star, gasRow: c.row, addedAt: c.addedAt||'',  // GASのrow番号を保持
+    unit: c.unit || localUnit.get(c.word) || ''
   }));
+  if (gasVersion >= 6) imported.forEach(c => { if (c.unit && !res.cards.find(r=>r.word===c.word)?.unit) needUnitPush.push(c); });
 
   CARDS = [...imported, ...localOnly];
   saveCards();
@@ -1176,6 +1323,12 @@ async function loadFromGAS() {
   buildDeck();
   renderMyWordList();
   setStatus(`✅ Sheets から ${imported.length} 語を読み込みました`);
+  // 端末だけにあった単元をシートにも書き込む／未保存の単語をシートへ送る
+  (async()=>{
+    for (const c of needUnitPush) await gasPost({ action:'update', row:c.gasRow, match:c.word, cards:c });
+    for (const c of unsynced) await saveCardToGAS(c);
+    if (unsynced.length) { saveCards(); setStatus(`☁️ 未保存だった ${unsynced.length} 語をシートに保存しました`); }
+  })();
 }
 
 /* カードをGASに保存（失敗時はキューに追加） */
@@ -1187,7 +1340,8 @@ async function saveCardToGAS(card) {
       word: card.word, meaning: card.meaning, pos: card.pos||'',
       ipa: card.ipa||'', def: card.def||'', ex: card.ex||'',
       cefr: card.cefr||'B1', section: card.section||'My Words',
-      addedAt: new Date().toLocaleDateString('ja-JP'), star: card.star
+      addedAt: card.addedAt || (card.addedAt = new Date().toLocaleDateString('ja-JP')), star: card.star,
+      unit: card.unit || ''
     }
   };
   const res = await gasPost(op);
@@ -1202,15 +1356,18 @@ async function saveCardToGAS(card) {
 /* スター更新をGASに反映 */
 async function updateStarInGAS(card) {
   if(!gasReady || !card.gasRow) return;
-  await gasPost({ action:'star', row: card.gasRow, star: card.star });
+  const res = await gasPost({ action:'star', row: card.gasRow, match: card.word, star: card.star });
+  if (res && res.row && res.row !== card.gasRow) { card.gasRow = res.row; saveCards(); }
 }
 
 /* GASからカードを削除 */
 async function deleteCardFromGAS(card) {
   if(!gasReady || !card.gasRow) return;
-  await gasPost({ action:'delete', row: card.gasRow });
+  const res = await gasPost({ action:'delete', row: card.gasRow, match: card.word });
+  if (!res || res.missing) return;   // 失敗、またはシートに既にない
+  const del = parseInt(res.deleted) || card.gasRow;
   // 以降の行のgasRowを-1する（deleteRow後にずれるため）
-  CARDS.forEach(c=>{ if(c.gasRow && c.gasRow > card.gasRow) c.gasRow--; });
+  CARDS.forEach(c=>{ if(c !== card && c.gasRow && c.gasRow > del) c.gasRow--; });
 }
 
 /* ============================================================
@@ -1276,7 +1433,7 @@ function updateSheetsUI(status) {
     txt.innerHTML = gasSheetUrl
       ? `✅ Sheets 接続中 <a href="${gasSheetUrl}" target="_blank" style="color:var(--green);margin-left:6px;font-size:0.72rem">開く↗</a>`
       : '✅ Sheets 接続中';
-    if(btn){ btn.textContent='再同期'; btn.style.display=''; btn.onclick=()=>{ connectToGAS(); flushSyncQueue(); }; }
+    if(btn){ btn.textContent='再同期'; btn.style.display=''; btn.onclick=async()=>{ await initGAS(); flushSyncQueue(); }; }
   } else if(status==='connecting'){
     box.className='sheets-status';
     txt.textContent='⏳ 接続中…';
@@ -1317,6 +1474,15 @@ function saveGasUrl(){
   if(!v||!v.includes('script.google.com')){
     alert('有効なGAS URLを入力してください\nhttps://script.google.com/macros/s/xxxxx/exec の形式です');
     return;
+  }
+  const prevUrl = localStorage.getItem('tango_gas_url') || '';
+  if (prevUrl && prevUrl !== v) {
+    // 別のシートに切り替え: 古いシートの行番号は使えないので消す（新しいシートへ送り直す）
+    // （設定画面からの変更では CARDS が未読み込みのことがあるので保存データを直接直す）
+    try { const saved = JSON.parse(localStorage.getItem('tango_cards')||'[]');
+      if (Array.isArray(saved)) { saved.forEach(c=>{ delete c.gasRow; delete c.row; }); localStorage.setItem('tango_cards', JSON.stringify(saved)); } } catch {}
+    CARDS.forEach(c=>{ delete c.gasRow; delete c.row; });
+    saveSyncQueue([]);
   }
   GAS_EXEC_URL=v;
   localStorage.setItem('tango_gas_url', GAS_EXEC_URL);
@@ -1417,17 +1583,35 @@ async function gFetch(url,method='GET',body=null){
 function loadCards(){
   const raw=localStorage.getItem('tango_cards');
   try{if(raw)CARDS=JSON.parse(raw);}catch{CARDS=[];}
-  if(!CARDS.length) CARDS=DEFAULT_CARDS.map(c=>({star:false,...c}));
+  if(!Array.isArray(CARDS)) CARDS=[];  // 新規ユーザー: 空の単語帳から開始
   CARDS.forEach(c=>{if(c.star===undefined)c.star=false;});
   syncSections();buildDeck();renderMyWordList();
 }
 function saveCards(){localStorage.setItem('tango_cards',JSON.stringify(CARDS));}
+function getUnits(){ return [...new Set(CARDS.filter(c=>c.section==='My Words'&&c.unit).map(c=>c.unit))].sort((a,b)=>a.localeCompare(b,'ja',{numeric:true})); }
 function syncSections(){
   const sel=document.getElementById('sectionSelect');if(!sel)return;
-  const have=new Set([...sel.options].map(o=>o.value));
-  [...new Set(CARDS.map(c=>c.section))].filter(s=>s!=='My Words'&&!have.has(s)).sort().forEach(s=>{
-    const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);
-  });
+  const cur=sel.value||'all';
+  const units=getUnits();
+  const others=[...new Set(CARDS.map(c=>c.section))].filter(s=>s&&s!=='My Words').sort();
+  let html='<option value="all">📖 すべての単語</option><option value="My Words">⭐ マイ単語帳</option>';
+  html+=others.map(s=>`<option value="${h(s)}">${h(s)}</option>`).join('');
+  if(units.length){
+    html+='<optgroup label="📁 単元">'+units.map(u=>`<option value="unit:${h(u)}">📁 ${h(u)}（${CARDS.filter(c=>c.unit===u).length}語）</option>`).join('')+
+      (()=>{const n=CARDS.filter(c=>c.section==='My Words'&&!c.unit).length; return n?`<option value="unit:">📁 単元なし（${n}語）</option>`:'';})()+'</optgroup>';
+  }
+  sel.innerHTML=html;
+  sel.value=[...sel.options].some(o=>o.value===cur)?cur:'all';
+  if(sel.value!==cur){ section=sel.value; }
+  // 共有の選択肢・単元名の候補
+  const sh=document.getElementById('shareUnit');
+  if(sh){ const sc=sh.value; sh.innerHTML='<option value="">すべての単語</option>'+units.map(u=>`<option value="${h(u)}">📁 ${h(u)}</option>`).join(''); if([...sh.options].some(o=>o.value===sc))sh.value=sc; }
+  const dl=document.getElementById('unitList'); if(dl) dl.innerHTML=units.map(u=>`<option value="${h(u)}">`).join('');
+}
+function matchSection(c){
+  if(section==='all') return true;
+  if(section.startsWith('unit:')){ const u=section.slice(5); return c.section==='My Words' && (c.unit||'')===u; }
+  return c.section===section;
 }
 /* CEFR推定（ejdictの単語番号を使って推定） */
 function estimateCEFR(word) {
@@ -1580,11 +1764,11 @@ function buildDeck(){updateDueBadge();
   const CEFR_ORD=['A1','A2','B1','B2','C1','C2'];
   const sortOrd = document.getElementById('sortOrder')?.value || 'date_desc';
   deck=CARDS.filter(c=>{
-    const s=section==='all'||c.section===section;
+    const s=matchSection(c);
     const sr=getSR(c);
   const m=mode==='all'||(mode==='unseen'&&!c.star)||(mode==='review'&&isDue(c));
   const mist=!mistakeMode||((sr.lapses||0)>=1);
-    return s&&m;
+    return s&&m&&mist;
   });
   // 並び替え
   if(sortOrd==='alpha_asc') deck.sort((a,b)=>a.word.toLowerCase().localeCompare(b.word.toLowerCase()));
@@ -1619,12 +1803,14 @@ function getSR(c){return SR[srKey(c)]||{interval:0,ease:2.5,due:0,reps:0,lapses:
 function isDue(c){const s=getSR(c);return s.reps>0&&s.due<=Date.now();}
 function rateCard(q){
   if(!deck.length)return;
+  _pendingAutoRate=null;
   const card=currentCard(); if(!card)return; const key=srKey(card),sr=getSR(card);
   if(q<2){sr.interval=Math.max(1,Math.floor(sr.interval*0.6));sr.lapses=(sr.lapses||0)+1;if(q===0)sr.reps=0;}
-  else{if(sr.reps===0)sr.interval=1;else if(sr.reps===1)sr.interval=4;else sr.interval=Math.max(1,Math.round(sr.interval*(sr.ease||2.5)));sr.ease=Math.max(1.3,(sr.ease||2.5)+0.1-(3-q)*(0.08+(3-q)*0.02));sr.reps++;if(q===3){card.star=true;saveCards();}}
-  sr.due=Date.now()+sr.interval*86400000;SR[key]=sr;
+  else{if(sr.reps===0)sr.interval=1;else if(sr.reps===1)sr.interval=4;else sr.interval=Math.max(1,Math.round(sr.interval*(sr.ease||2.5)));sr.ease=Math.max(1.3,(sr.ease||2.5)+0.1-(3-q)*(0.08+(3-q)*0.02));sr.reps++;if(q===3){const was=card.star;card.star=true;saveCards();if(!was)updateStarInGAS(card);}}
+  sr.due=Date.now()+sr.interval*86400000;sr.t=Date.now();SR[key]=sr;
   localStorage.setItem('tango_sr',JSON.stringify(SR));
   markStudied();logStudyCount();updateDueBadge();
+  scheduleProgressSync();
   // セッション統計
   if (!window._session) window._session = {correct:0, wrong:0, total:0};
   window._session.total++;
@@ -1680,7 +1866,9 @@ async function fetchWithTimeout(url, options={}, ms=5000) {
 }
 
 /* MyMemory API（タイムアウト付き） */
+let _myMemDownUntil=0;
 async function myMemQuery(q) {
+  if (Date.now() < _myMemDownUntil) return '';
   try {
     const r = await fetchWithTimeout(
       `${MYMEMORY}?q=${encodeURIComponent(q)}&langpair=en|ja`,
@@ -1694,7 +1882,7 @@ async function myMemQuery(q) {
       const t = (m.translation || '').trim();
       if (t && hasJP(t)) return t;
     }
-  } catch(e) { /* タイムアウト or ネットワークエラー */ }
+  } catch(e) { _myMemDownUntil = Date.now() + 5*60*1000; /* タイムアウト or ネットワークエラー */ }
   return '';
 }
 
@@ -1750,6 +1938,22 @@ async function collectAllPOS(word) {
     if (seenPos.has(k)) return false;
     seenPos.add(k); return true;
   });
+
+  // 品詞別辞書（オフライン）を最優先: APIが止まっていても品詞ごとに改行できる
+  const posFirst = (typeof window.EJDICT_POS !== 'undefined')
+    ? (window.EJDICT_POS[word] || window.EJDICT_POS[word.toLowerCase()] || null)
+    : null;
+  if (posFirst) {
+    const r0 = [];
+    for (const [enPos, jp] of Object.entries(posFirst)) {
+      if (jp && hasJP(jp)) r0.push({ pos: enPos, jp });
+    }
+    r0.sort((a,b) => {
+      const ai = POS_ORDER.indexOf(a.pos), bi = POS_ORDER.indexOf(b.pos);
+      return (ai<0?9:ai) - (bi<0?9:bi);
+    });
+    if (r0.length) return r0;
+  }
 
   if (uniqueMeanings.length === 0) {
     // 品詞情報なし: ejdict 先頭訳
@@ -1861,8 +2065,20 @@ async function autoTranslateWithContext(word, contextText) {
 
 async function fetchDict(word){
   const w=word.toLowerCase().trim();if(DC[w])return DC[w];
+  const off = await exLookup(word);   // オフライン例文辞書
+  const res = await fetchDictAPI(w);
+  if (off) {
+    if (off.ipa) res.ipa = off.ipa;
+    if (off.ex)  { res.ex = off.ex; res.exJa = off.exJa; }
+  }
+  if (res.apiOk || off) DC[w] = res;
+  return res;
+}
+let _dictApiDownUntil=0;
+async function fetchDictAPI(w){
+  if(Date.now()<_dictApiDownUntil) return{ipa:'',def:'',ex:'',exJa:'',pos:'',allMeanings:[],apiOk:false};
   try{
-    const r=await fetch(DICT_API+encodeURIComponent(w));if(!r.ok)throw 0;
+    const r=await fetchWithTimeout(DICT_API+encodeURIComponent(w),{},4000);if(!r.ok)throw 0;
     const data=await r.json();if(!Array.isArray(data)||!data[0])throw 0;
     const entry=data[0];
     // 全品詞を収集 (FreeDictionaryAPI は meanings[] で複数品詞を返す)
@@ -1877,10 +2093,10 @@ async function fetchDict(word){
     const res={
       ipa:entry.phonetics?.find(p=>p.text)?.text||'',
       def:first.def, ex:first.ex, pos:first.pos,
-      allMeanings, synonyms, antonyms
+      allMeanings, synonyms, antonyms, apiOk:true
     };
-    DC[w]=res;return res;
-  }catch{return{ipa:'',def:'',ex:'',pos:'',allMeanings:[]};}
+    return res;
+  }catch{_dictApiDownUntil=Date.now()+5*60*1000;return{ipa:'',def:'',ex:'',exJa:'',pos:'',allMeanings:[],apiOk:false};}
 }
 
 /* CARD RENDER */
@@ -1897,6 +2113,8 @@ async function renderCard(){
   document.getElementById('flashCard').classList.remove('is-flipped');
   if(!deck.length){
     const msg=mode==='review'?'復習なし ✅':'単語なし';
+    ['frontCloze','spellBox','backSub','spellResult'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+    document.getElementById('frontWord').style.display='';
     document.getElementById('frontWord').textContent=msg;
     document.getElementById('frontPos').textContent='';
     document.getElementById('backMeaning').textContent='';
@@ -1907,9 +2125,15 @@ async function renderCard(){
   ['cefrF','cefrB'].forEach(id=>{const el=document.getElementById(id);el.textContent=cefr;el.className='cefr-tag c'+cefr;});
   const _sb=document.getElementById('starBtn');if(_sb)_sb.classList.toggle('is-active',!!c.star);
   const sf=document.getElementById('speakFront'),sb=document.getElementById('speakBack');
+  // 穴埋め・書くモードの表示を一旦リセット
+  const _fc=document.getElementById('frontCloze'),_spb=document.getElementById('spellBox'),_bs=document.getElementById('backSub'),_sr=document.getElementById('spellResult');
+  _fc.style.display='none';_fc.innerHTML='';_spb.style.display='none';_bs.style.display='none';_bs.textContent='';_sr.style.display='none';
+  _pendingAutoRate=null;
+  document.getElementById('frontWord').style.display='';
   if(dir==='en2jp'){
     const fw=document.getElementById('frontWord');
     fw.textContent=c.word;
+    fw.style.whiteSpace=''; fw.style.textAlign='';   // 日→英の設定を解除
     fw.classList.add('word-xl');
     // 単語長に応じてフォントサイズを最大化（横幅いっぱいに）
     if(c.word.length >= 10 && window.innerWidth <= 768){
@@ -1926,6 +2150,7 @@ async function renderCard(){
     const bm1=document.getElementById('backMeaning');
     const displayMeaning = (c.meaning||'').replace(/ \/ (?=名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞)/g, '\n');
     bm1.textContent=displayMeaning;
+    bm1.style.whiteSpace=''; bm1.style.fontSize='';  // 日→英の設定を解除
     bm1.classList.add('multipos'); // (3) 日本語意味は常に左揃え
     bm1.classList.remove('meaning-xl');
     sf.style.display='';sb.style.display='none';
@@ -1954,35 +2179,100 @@ async function renderCard(){
       bm2.style.fontSize = '';
     }
     sf.style.display='none';sb.style.display='';
+    if(dir==='cloze'||dir==='spell'||dir==='listen'){
+      // 裏面: 英単語＋意味
+      _bs.textContent=(c.meaning||'');_bs.style.display='';
+    }
+    if(dir==='cloze'){
+      const cz=await buildCloze(c); if(deck[idx]!==c)return;
+      if(cz){
+        const fwc=document.getElementById('frontWord'); fwc.style.display='none';
+        document.getElementById('frontPos').textContent='';
+        _fc.innerHTML=`${h(cz.before)}<span class="cloze-blank">${h(cz.hit)}</span>${h(cz.after)}`+
+          (cz.ja?`<div class="cloze-ja">${h(cz.ja)}</div>`:'')+
+          `<div class="cloze-hint">ヒント: ${h(cz.hit.charAt(0))}… （${cz.hit.length}文字）</div>`;
+        _fc.style.display='';
+      } else {
+        document.getElementById('frontPos').textContent='（例文がないため日本語から出題）';
+      }
+    }
+    if(dir==='listen'){
+      document.getElementById('frontWord').style.display='none';
+      document.getElementById('frontPos').textContent='';
+      _fc.innerHTML=`<div class="listen-box"><div class="listen-title">🎧 聞こえた英単語を書いてください</div>
+        <button class="listen-play" onclick="event.stopPropagation();speak(currentCard().word)">🔊 もう一度聞く</button>
+        <div class="cloze-hint">（${c.word.length}文字）</div></div>`;
+      _fc.style.display='';
+      setTimeout(()=>{ const cc=currentCard(); if(cc===c && dir==='listen') speak(cc.word); }, 350);
+    }
+    if(dir==='spell'||dir==='listen'){
+      _spb.style.display='';
+      const inp=document.getElementById('spellInput'); inp.value='';
+      if(window.matchMedia&&matchMedia('(pointer:fine)').matches) setTimeout(()=>inp.focus({preventScroll:true}),50);
+    }
   }
-  renderDictBlock(c.ipa||'',c.def||'',c.ex||'',c.word);
+  renderDictBlock(c.ipa||'',c.def||'',c.ex||'',c.word,c.exJa||'');
   const d=await fetchDict(c.word);if(deck[idx]!==c)return;
-  if(d.ipa&&!c.ipa)c.ipa=d.ipa;if(d.pos&&!c.pos){c.pos=d.pos;document.getElementById('frontPos').textContent=d.pos;}
-  if(d.def&&!c.def)c.def=d.def;if(d.ex&&!c.ex)c.ex=d.ex;
-  renderDictBlock(c.ipa||d.ipa,c.def||d.def,c.ex||d.ex,c.word);
+  let filled=false;
+  if(d.ipa&&!c.ipa){c.ipa=d.ipa;filled=true;}
+  if(d.pos&&!c.pos){c.pos=d.pos;document.getElementById('frontPos').textContent=d.pos;}
+  if(d.def&&!c.def){c.def=d.def;filled=true;}
+  if(d.ex&&!c.ex){c.ex=d.ex;c.exJa=d.exJa||'';filled=true;}
+  else if(d.exJa&&!c.exJa&&c.ex===d.ex){c.exJa=d.exJa;filled=true;}
+  if(filled)saveCards();
+  renderDictBlock(c.ipa||d.ipa,c.def||d.def,c.ex||d.ex,c.word,c.exJa||(c.ex===d.ex?d.exJa:'')||'');
 }
-function renderDictBlock(ipa,def,ex,word){
+function renderDictBlock(ipa,def,ex,word,exJa){
   const wl=(word||'').toLowerCase();
   const d=DC[wl]||{};
   const syns=d.synonyms&&d.synonyms.length?`<div class="dict-syn">≈ 類語: ${h(d.synonyms.slice(0,4).join(', '))}</div>`:'';
   const ants=d.antonyms&&d.antonyms.length?`<div class="dict-syn" style="color:#dc2626">⟺ 対義語: ${h(d.antonyms.slice(0,3).join(', '))}</div>`:'';
   document.getElementById('dictExt').innerHTML=
-    `${ipa?`<div class="dict-ipa">${h(ipa)}</div>`:''}${def?`<div class="dict-def">${h(def)}</div>`:''}${ex?`<div class="dict-ex">📝 ${h(ex)}</div>`:''}${syns}${ants}`;
+    `${ipa?`<div class="dict-ipa">${h(ipa)}</div>`:''}${def?`<div class="dict-def">${h(def)}</div>`:''}${ex?`<div class="dict-ex">📝 ${h(ex)}<button class="ex-speak" title="例文を読み上げ" data-t="${h(ex)}" onclick="event.stopPropagation();speak(this.dataset.t)">🔊</button>${exJa?`<div class="dict-exja">${h(exJa)}</div>`:''}</div>`:''}${syns}${ants}
+    <button class="refetch-btn" onclick="refetchCurrentCard(event)">🔄 訳・発音・例文を再取得</button>`;
+}
+
+/* 登録済みカードの訳・発音記号・例文を辞書から引き直す */
+async function refetchCurrentCard(e){
+  if(e)e.stopPropagation();
+  const c=currentCard(); if(!c)return;
+  const btn=e&&e.target; if(btn){btn.disabled=true;btn.textContent='取得中…';}
+  try{
+    delete DC[c.word.toLowerCase().trim()];
+    const meaning=await autoTranslateAllPOS(c.word);
+    const d=await fetchDict(c.word);
+    if(meaning&&!/訳語なし|翻訳エラー/.test(meaning))c.meaning=meaning;
+    if(d.ipa)c.ipa=d.ipa;
+    if(d.def)c.def=d.def;
+    if(d.ex){c.ex=d.ex;c.exJa=d.exJa||'';}
+    if(d.pos)c.pos=d.pos;
+    c.cefr=estimateCEFR(c.word);
+    saveCards();
+    const row=c.gasRow||c.row;
+    if(row&&gasReady)gasPost({action:'update',row,match:c.word,cards:c});
+    renderCard().then(()=>{flipped=true;document.getElementById('flashCard').classList.add('is-flipped');});
+    setStatus(`🔄「${c.word}」を再取得しました`);
+  }catch(err){
+    console.error(err);setStatus('再取得に失敗しました');
+    if(btn){btn.disabled=false;btn.textContent='🔄 訳・発音・例文を再取得';}
+  }
 }
 
 /* FLIP / NAV */
 function flip(){
   if(!deck.length)return;flipped=!flipped;
+  if(flipped && (dir==='spell'||dir==='listen')){ const r=document.getElementById('spellResult'); if(r.style.display==='none'){ const a=(document.getElementById('spellInput').value||'').trim(); if(a){ flipped=false; checkSpell(); return; } } }
   document.getElementById('flashCard').classList.toggle('is-flipped',flipped);
   markStudied();
   // (3) jp2en: 裏面の英単語を発音（めくった時点のカードを即キャプチャ）
-  if(flipped && dir==='jp2en'){
+  if(flipped && dir!=='en2jp'){
     const wordToSpeak = (currentCard()||{}).word;
     if(wordToSpeak && window._cardLoaded) setTimeout(()=>speak(wordToSpeak), 380);
   }
 }
 function next(){
   if(!deck.length)return;
+  if(_pendingAutoRate!==null){ applyAutoRate(); return; }   // 書く・聞き取り: 結果で記録してから次へ
   idx=(idx+1)%(shuffleOn?shuffleOrder.length:deck.length);
   renderCard();
 }
@@ -1998,6 +2288,23 @@ function prev(){
   idx=(idx-1+len)%len;
   renderCard();
 }
+/* ⭐をすべて外す（シートにも反映） */
+function clearAllStars(){
+  const starred = CARDS.filter(c => c.star);
+  CARDS.forEach(c => { c.star = false; });
+  saveCards();
+  (async()=>{ for (const c of starred) await updateStarInGAS(c); })();
+}
+/* ヘッダーの🔄: ⭐（習得済み）だけをリセット */
+function resetStarsOnly(){
+  const n = CARDS.filter(c => c.star).length;
+  if (!n) { alert('⭐（習得済み）の単語はありません'); return; }
+  if (!confirm(`⭐（習得済み）${n}語をすべて未習得に戻しますか？\n\n・単語・意味・発音などのデータは削除されません\n・復習スケジュールや学習履歴はそのまま残ります\n・その他の項目は「分析」タブのデータリセットから選べます`)) return;
+  clearAllStars();
+  buildDeck(); renderCard();
+  setStatus('🔄 ⭐をリセットしました');
+}
+
 function resetProgress(){
   const rstStar = document.getElementById('rst_star')?.checked;
   const rstSr   = document.getElementById('rst_sr')?.checked;
@@ -2020,13 +2327,16 @@ function resetProgress(){
   if(!confirm(`以下の項目をリセットしますか？\n\n・${items}\n\n単語・意味は削除されません`)) return;
 
   let msg = [];
-  if(rstStar){ CARDS.forEach(c => { c.star = false; }); saveCards(); msg.push('⭐'); }
-  if(rstSr){   SR = {}; localStorage.removeItem('tango_sr'); msg.push('SM-2'); }
-  if(rstStk){  STK = {last:'',count:0,history:[]}; localStorage.removeItem('tango_stk'); msg.push('ストリーク'); }
-  if(rstLog){    localStorage.removeItem('tango_daily_log'); msg.push('学習履歴'); }
+  if(rstStar){ clearAllStars(); msg.push('⭐'); }
+  const _ra = JSON.parse(localStorage.getItem('tango_reset_at')||'{}'), _now = Date.now();
+  if(rstSr){   SR = {}; localStorage.removeItem('tango_sr'); _ra.sr=_now; msg.push('SM-2'); }
+  if(rstStk){  STK = {last:'',count:0,history:[]}; localStorage.removeItem('tango_stk'); _ra.stk=_now; msg.push('ストリーク'); }
+  if(rstLog){    localStorage.removeItem('tango_daily_log'); _ra.log=_now; msg.push('学習履歴'); }
   const rstMastery = document.getElementById('rst_mastery')?.checked;
-  if(rstMastery){ localStorage.removeItem('tango_mastery_log'); msg.push('習得率推移'); }
-  if(rstSess){ localStorage.removeItem('tango_sess_hist'); msg.push('セッション履歴'); }
+  if(rstMastery){ localStorage.removeItem('tango_mastery_log'); _ra.mastery=_now; msg.push('習得率推移'); }
+  if(rstSess){ localStorage.removeItem('tango_sess_hist'); _ra.sess=_now; msg.push('セッション履歴'); }
+  localStorage.setItem('tango_reset_at', JSON.stringify(_ra));
+  scheduleProgressSync(1500);
 
   buildDeck();
   if(document.querySelector('.main-tab.active')?.dataset.tab === 'stats') renderStats();
@@ -2049,9 +2359,50 @@ function toggleStar(e){
 }
 function setDirection(d){
   dir=d;
-  document.getElementById('dirEN').classList.toggle('active',d==='en2jp');
-  document.getElementById('dirJP').classList.toggle('active',d==='jp2en');
+  const map={en2jp:'dirEN',jp2en:'dirJP',cloze:'dirCL',spell:'dirSP',listen:'dirLS'};
+  Object.entries(map).forEach(([k,id])=>document.getElementById(id)?.classList.toggle('active',d===k));
   idx=0;renderCard();
+}
+/* 例文の中の見出し語（活用形を含む）を探す */
+function wordFormsRegex(word){
+  const w = word.toLowerCase().trim();
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const forms = new Set([w, w+'s', w+'es', w+'ed', w+'d', w+'ing', w+'er', w+'est', w+'ly']);
+  if (/[^aeiou]y$/.test(w)) { const b=w.slice(0,-1); ['ies','ied','ier','iest','ily'].forEach(x=>forms.add(b+x)); }
+  if (/e$/.test(w)) { const b=w.slice(0,-1); ['ing','ed','er','est'].forEach(x=>forms.add(b+x)); }
+  if (/[^aeiou][aeiou][^aeiouwxy]$/.test(w)) { const b=w+w.slice(-1); ['ed','ing','er','est'].forEach(x=>forms.add(b+x)); }
+  if (/ie$/.test(w)) forms.add(w.slice(0,-2)+'ying');
+  const list=[...forms].sort((a,b)=>b.length-a.length).map(esc).join('|');
+  return new RegExp(`(^|[^A-Za-z])(${list})(?![A-Za-z])`, 'i');
+}
+async function buildCloze(c){
+  let ex = c.ex||'', ja = c.exJa||'';
+  if (!ex || !ja) { const off = await exLookup(c.word); if (off && off.ex && (!ex || off.ex===ex || !ja)) { if(!ex){ex=off.ex;} if(off.ex===ex) ja=off.exJa; } }
+  if (!ex) return null;
+  const re = wordFormsRegex(c.word); const m = ex.match(re);
+  if (!m) return null;
+  const at = m.index + m[1].length, hit = m[2];
+  return { before: ex.slice(0,at), after: ex.slice(at+hit.length), hit, ja };
+}
+function checkSpell(e){
+  if(e) e.stopPropagation();
+  const c = currentCard(); if(!c) return;
+  const inp = document.getElementById('spellInput'); const ans = (inp.value||'').trim();
+  const norm = s => s.toLowerCase().replace(/[’']/g,"'").replace(/\s+/g,' ').trim();
+  const ok = ans && norm(ans) === norm(c.word);
+  const r = document.getElementById('spellResult');
+  r.style.display=''; r.className = 'spell-result ' + (ok?'spell-ok':'spell-ng');
+  r.innerHTML = (ok ? '✅ 正解！' : (ans ? `❌ あなたの答え: ${h(ans)}` : '答え')) +
+    `<br><button class="auto-next" onclick="event.stopPropagation();applyAutoRate()">次へ ▶（「${ok?'🙂 よかった':'😓 もう一度'}」で記録）</button>`;
+  _pendingAutoRate = ok ? 2 : 0;
+  inp.blur();
+  if(!flipped) flip();
+}
+/* 書く・聞き取り: 答え合わせの結果で自動的に評価 */
+let _pendingAutoRate = null;
+function applyAutoRate(){
+  if(_pendingAutoRate===null) return;
+  const q=_pendingAutoRate; _pendingAutoRate=null; rateCard(q);
 }
 let mistakeMode=false;
 function toggleMistakeMode(){
@@ -2069,12 +2420,14 @@ function deleteCurrentCard(e){
   e.stopPropagation();if(!deck.length)return;
   const c=currentCard();if(!confirm(`「${c.word}」を削除しますか？`))return;
   CARDS=CARDS.filter(x=>x.id!==c.id);saveCards();syncSections();renderMyWordList();buildDeck();
+  deleteCardFromGAS(c).then(saveCards);
   setStatus(`🗑「${c.word}」を削除しました`);
 }
 function deleteCard(id){
   const c=CARDS.find(x=>x.id===id);
   if(!confirm(`「${c?.word||'この単語'}」を削除しますか？`))return;
   CARDS=CARDS.filter(x=>x.id!==id);saveCards();syncSections();renderMyWordList();buildDeck();
+  if(c) deleteCardFromGAS(c).then(saveCards);
 }
 
 /* TEXT SELECTION POPUP */
@@ -2119,8 +2472,10 @@ async function addFromPopup(){
   // (2b) 文脈付き翻訳: テキストエリアの英文を文脈として使う
   const readerCtx = document.getElementById('readerText').value ||
                     document.getElementById('ocrPreview').textContent || '';
-  const meaning = await autoTranslateWithContext(word, readerCtx);
-  const card={id:Date.now(),section:'My Words',word,meaning,pos:dict.pos||'',ipa:dict.ipa||'',def:dict.def||'',ex:dict.ex||'',cefr:estimateCEFR(word),star:false};
+  let meaning = await autoTranslateAllPOS(word);
+  if (!meaning || /訳語なし|翻訳エラー/.test(meaning)) meaning = await autoTranslateWithContext(word, readerCtx);
+  const d2 = await fetchDict(word);
+  const card={id:Date.now(),section:'My Words',word,meaning,pos:d2.pos||dict.pos||'',ipa:d2.ipa||dict.ipa||'',def:d2.def||dict.def||'',ex:d2.ex||dict.ex||'',exJa:d2.exJa||'',cefr:estimateCEFR(word),star:false};
   CARDS.push(card);saveCards();syncSections();renderMyWordList();buildDeck();
   await saveCardToGAS(card);
   document.getElementById('popSaveBtn').textContent='✓ 追加しました！';
@@ -2167,7 +2522,7 @@ async function manualAdd(){
   if(!meaning) meaning = await autoTranslate(word);
   const dictData = await fetchDict(word);
   const card={id:Date.now(),section:'My Words',word,meaning,
-    pos:dictData.pos||'',ipa:dictData.ipa||'',def:dictData.def||'',ex:dictData.ex||'',
+    pos:dictData.pos||'',ipa:dictData.ipa||'',def:dictData.def||'',ex:dictData.ex||'',exJa:dictData.exJa||'',
     cefr:estimateCEFR(word),star:false};
   CARDS.push(card);saveCards();syncSections();renderMyWordList();buildDeck();
   document.getElementById('addWord').value='';document.getElementById('addMeaning').value='';
@@ -2176,7 +2531,200 @@ async function manualAdd(){
   setStatus(`✅「${word}」→「${meaning}」を追加しました`);
 }
 
+/* 3. まとめて登録 */
+function parseBulkLines(text){
+  const out = [], seen = new Set();
+  for (let line of (text||'').split(/\r?\n/)) {
+    line = line.trim(); if (!line || line.startsWith('#')) continue;
+    line = line.replace(/^\s*(?:[0-9０-９]+[\.\)、．:：）]\s*|[①-⑳]\s*|[0-9０-９]+\s+)/, '');   // 番号を外す
+    let word = line, meaning = '';
+    const m = line.match(/^([^\t,，]+)[\t,，]\s*(.+)$/);
+    if (m) { word = m[1]; meaning = m[2].trim(); }
+    word = word.trim().replace(/^[\-・•*]+\s*/, '').replace(/\s+/g,' ');
+    if (!/[A-Za-z]/.test(word) || word.length > 60) continue;
+    const k = word.toLowerCase(); if (seen.has(k)) continue; seen.add(k);
+    out.push({ word, meaning });
+  }
+  return out;
+}
+let _bulkBusy = false;
+async function bulkAdd(){
+  if (_bulkBusy) return;
+  const ta = document.getElementById('bulkText'), btn = document.getElementById('bulkBtn'), pr = document.getElementById('bulkProgress');
+  const items = parseBulkLines(ta.value);
+  if (!items.length) { alert('登録する英単語を1行に1語ずつ入力してください'); return; }
+  // 単元名: 入力欄 → 貼り付けた文字の「#単元: ○○」の順
+  const um = ta.value.match(/^\s*#\s*単元\s*[:：]\s*(.+)$/m);
+  const unit = (document.getElementById('bulkUnit').value.trim() || (um ? um[1].trim() : '')).slice(0,40);
+  const byWord = new Map(CARDS.map(c=>[c.word.toLowerCase(), c]));
+  const todo = items.filter(it => !byWord.has(it.word.toLowerCase()));
+  const skipped = items.length - todo.length;
+  // 登録済みの単語にも単元を付ける（単元が無い場合のみ）
+  const tagged = [];
+  if (unit) items.forEach(it => { const c = byWord.get(it.word.toLowerCase()); if (c && !c.unit) { c.unit = unit; tagged.push(c); } });
+  if (tagged.length) { saveCards(); syncSections(); renderMyWordList(); buildDeck();
+    if (gasReady) (async()=>{ for (const c of tagged) if (c.gasRow) await gasPost({ action:'update', row:c.gasRow, match:c.word, cards:c }); })(); }
+  if (!todo.length) { setStatus(`ℹ️ すべて登録済みでした（${skipped}語）` + (tagged.length ? `。${tagged.length}語に単元「${unit}」を付けました` : '')); return; }
+  if (todo.length > 20 && !confirm(`${todo.length}語を登録します。辞書を引くので少し時間がかかります。よろしいですか？`)) return;
+  _bulkBusy = true; btn.disabled = true;
+  const added = [];
+  try {
+    for (let i = 0; i < todo.length; i++) {
+      const { word } = todo[i]; let { meaning } = todo[i];
+      pr.textContent = `登録中… ${i+1} / ${todo.length}（${word}）`;
+      if (!meaning) meaning = await autoTranslate(word);
+      else meaning = meaning.replace(/ \/ (?=(名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞|助動詞)[:：])/g, '\n');
+      const d = await fetchDict(word);
+      const card = { id: Date.now() + i, section:'My Words', word, meaning,
+        pos:d.pos||'', ipa:d.ipa||'', def:d.def||'', ex:d.ex||'', exJa:d.exJa||'',
+        cefr: estimateCEFR(word), star:false, addedAt: new Date().toLocaleDateString('ja-JP'), unit };
+      CARDS.push(card); added.push(card);
+      if ((i+1) % 10 === 0) saveCards();
+    }
+  } finally {
+    saveCards(); syncSections(); renderMyWordList(); buildDeck();
+    _bulkBusy = false; btn.disabled = false;
+  }
+  ta.value = '';
+  pr.textContent = `✅ ${added.length}語を登録しました` + (unit ? `（単元「${unit}」）` : '') + (skipped ? `（登録済み ${skipped}語はスキップ${tagged.length?`、うち${tagged.length}語に単元を付与`:''}）` : '');
+  setStatus(`✅ ${added.length}語をまとめて登録しました` + (unit ? `（📁 ${unit}）` : ''));
+  // スプレッドシートへは順番に保存（裏で実行）
+  if (gasReady && added.length) {
+    (async () => {
+      for (let i = 0; i < added.length; i++) {
+        await saveCardToGAS(added[i]);
+        if ((i+1) % 5 === 0 || i === added.length-1) pr.textContent = `☁️ スプレッドシートに保存中… ${i+1} / ${added.length}`;
+      }
+      saveCards();
+      pr.textContent = `✅ ${added.length}語を登録し、スプレッドシートに保存しました`;
+    })();
+  }
+}
+
+/* 4. 全データのバックアップ */
+function exportBackup(){
+  const data = { app:'my-tango', format:1, exportedAt:new Date().toISOString(),
+    cards: CARDS.map(c=>{ const { gasRow, row, ...rest } = c; return rest; }),
+    progress: buildProgress(),
+    settings: { dark: localStorage.getItem('tango_dark'), fontIdx: localStorage.getItem('tango_font_idx') } };
+  const d = new Date(), ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  const blob = new Blob([JSON.stringify(data)], { type:'application/json' }); const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `my単語帳_バックアップ_${ymd}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  setStatus(`💾 バックアップを書き出しました（${CARDS.filter(c=>c.section==='My Words').length}語）`);
+}
+function importBackup(input){
+  const f = input.files && input.files[0]; input.value=''; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = async () => {
+    let data; try { data = JSON.parse(rd.result); } catch { alert('バックアップファイルを読み込めませんでした'); return; }
+    if (!data || data.app!=='my-tango' || !Array.isArray(data.cards)) { alert('my単語帳のバックアップファイルではありません'); return; }
+    const when = data.exportedAt ? new Date(data.exportedAt).toLocaleString('ja-JP') : '日時不明';
+    if (!confirm(`バックアップ（${when}・${data.cards.length}語）を読み込みます。\n\n・今の単語帳に統合します（今のデータは消えません）\n・同じ単語は今の単語帳を優先します\n・学習記録は新しい方を残して統合します`)) return;
+    const byWord = new Map(CARDS.map(c=>[c.word.toLowerCase(), c]));
+    const added = [], changed = []; let merged = 0;
+    data.cards.forEach((b,i) => {
+      if (!b || !b.word) return;
+      const cur = byWord.get(String(b.word).toLowerCase());
+      if (cur) { let ch=false;
+        if (!cur.meaning && b.meaning){cur.meaning=b.meaning;ch=true;} if (!cur.unit && b.unit){cur.unit=b.unit;ch=true;}
+        if (!cur.star && b.star){cur.star=true;ch=true;} if (!cur.ex && b.ex){cur.ex=b.ex;cur.exJa=b.exJa||'';ch=true;}
+        if (ch) { merged++; if (cur.gasRow) changed.push(cur); } return; }
+      const c = { ...b, id: Date.now()+i, section: b.section||'My Words', star: !!b.star };
+      delete c.gasRow; delete c.row;
+      CARDS.push(c); added.push(c); byWord.set(c.word.toLowerCase(), c);
+    });
+    if (data.progress) applyProgress(mergeProgress(buildProgress(), data.progress));
+    saveCards(); syncSections(); renderMyWordList(); buildDeck(); renderCard();
+    if (document.querySelector('.main-tab.active')?.dataset.tab === 'stats') renderStats();
+    setStatus(`✅ バックアップを読み込みました（追加 ${added.length}語・更新 ${merged}語）`, 5000);
+    if (gasReady) {
+      (async()=>{
+        for (const c of changed) await gasPost({ action:'update', row:c.gasRow, match:c.word, cards:c });
+        for (const c of added) await saveCardToGAS(c); saveCards(); })();
+      scheduleProgressSync(1500);
+    }
+  };
+  rd.readAsText(f);
+}
+
+/* 1. 単語リストの共有（文字で書き出し → 相手は「まとめて登録」に貼り付け） */
+function buildShareText(){
+  const unit = document.getElementById('shareUnit').value;
+  const withM = document.getElementById('shareWithMeaning').checked;
+  const list = CARDS.filter(c=>c.section==='My Words' && (!unit || c.unit===unit));
+  const lines = [];
+  if (unit) lines.push(`#単元: ${unit}`);
+  list.forEach(c => lines.push(withM && c.meaning ? `${c.word}, ${String(c.meaning).replace(/\r?\n/g,' / ')}` : c.word));
+  return { text: lines.join('\n'), count: list.length, unit };
+}
+async function shareWordList(how){
+  const { text, count, unit } = buildShareText();
+  if (!count) { alert('共有する単語がありません'); return; }
+  const ta = document.getElementById('shareText'); ta.value = text; ta.style.display = '';
+  const title = `my単語帳 ${unit ? '「'+unit+'」' : ''}（${count}語）`;
+  if (how === 'share' && navigator.share) {
+    try { await navigator.share({ title, text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  if (how === 'file') {
+    const blob = new Blob([text], { type:'text/plain;charset=utf-8' }); const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `単語リスト_${unit||'すべて'}.txt`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    setStatus(`💾 ${count}語の単語リストを保存しました`); return;
+  }
+  try { await navigator.clipboard.writeText(text); setStatus(`📋 ${count}語の単語リストをコピーしました`); }
+  catch { ta.focus(); ta.select(); try { document.execCommand('copy'); setStatus(`📋 ${count}語の単語リストをコピーしました`); } catch { setStatus('下の欄の文字を長押ししてコピーしてください', 5000); } }
+}
+
+/* 7. 全削除（バックアップを残す／完全に削除） */
+function closeDelAll(){ document.getElementById('delAllModal').classList.remove('show'); }
 function deleteAllMyWords(){
+  const mine = CARDS.filter(c=>c.section==='My Words');
+  if(!mine.length){ alert('マイ単語帳は空です'); return; }
+  if (!gasReady) {
+    if(!confirm(`マイ単語帳の ${mine.length} 語をすべて削除しますか？\nこの操作は取り消せません。`)) return;
+    clearLocalWords(); setStatus('🗑 マイ単語帳を全削除しました'); return;
+  }
+  document.getElementById('delAllMsg').textContent =
+    `マイ単語帳の ${mine.length} 語を削除します。スプレッドシートの単語をどうしますか？` +
+    (gasVersion < 5 ? '\n（バックアップを残すには、GASを最新版（v5）に更新してください）' : '');
+  document.getElementById('delAllArchive').disabled = gasVersion < 5;
+  document.getElementById('delAllModal').classList.add('show');
+}
+function clearLocalWords(){
+  CARDS = CARDS.filter(c=>c.section!=='My Words');
+  saveSyncQueue([]); updateSyncBadge();   // 未送信の追加が後から復活しないように
+  saveCards(); syncSections(); renderMyWordList(); buildDeck();
+}
+async function runDeleteAll(how){
+  const box = document.getElementById('delAllModal');
+  box.querySelectorAll('button').forEach(b=>b.disabled=true);
+  try {
+    if (how === 'archive') {
+      const r = await gasGet({ action:'archiveAll' });
+      if (!r || r.error || r.archived === undefined) throw new Error(r && r.error || '通信エラー');
+      clearLocalWords();
+      setStatus(`🗑 全削除しました。シートの ${r.archived} 語は「${r.backup||'バックアップ'}」に保存しました`, 6000);
+    } else {
+      let r = gasVersion >= 5 ? await gasGet({ action:'clearAll' }) : null;
+      if (!r || r.error || r.cleared === undefined) {
+        // 旧GAS: 行番号の大きい順に1行ずつ削除
+        const lr = await gasGet({ action:'load' });
+        if (!lr || !Array.isArray(lr.cards)) throw new Error('通信エラー');
+        const rows = lr.cards.map(c=>c.row).filter(Boolean).sort((a,b)=>b-a);
+        for (let i=0;i<rows.length;i++){ setStatus(`🗑 スプレッドシートから削除中… ${i+1} / ${rows.length}`, 2000); await gasPost({ action:'delete', row: rows[i] }); }
+      }
+      clearLocalWords();
+      setStatus('🗑 アプリとスプレッドシートから全削除しました', 5000);
+    }
+    closeDelAll();
+  } catch (e) {
+    setStatus('⚠️ スプレッドシートの削除に失敗しました。時間をおいてもう一度お試しください', 6000);
+  } finally {
+    box.querySelectorAll('button').forEach(b=>b.disabled=false);
+    document.getElementById('delAllArchive').disabled = gasVersion < 5;
+  }
+}
+
+function _deleteAllMyWords_local_old(){
   const mine = CARDS.filter(c=>c.section==='My Words');
   if(!mine.length){ alert('マイ単語帳は空です'); return; }
   if(!confirm(`マイ単語帳の ${mine.length} 語をすべて削除しますか？\nこの操作は取り消せません。`)) return;
@@ -2203,12 +2751,12 @@ function renderMyWordList(){
   const el=document.getElementById('myWordList');if(!el)return;
   if(!mine.length){el.innerHTML='<div class="empty">まだ単語がありません</div>';return;}
   el.innerHTML=[...mine].reverse().map(c=>`
-    <div class="word-item">
+    <div class="word-item" id="wi_${c.id}">
       <input type="checkbox" class="word-check" data-id="${c.id}"
         style="display:${selMode?'block':'none'}"
         onchange="updateSelCount()">
-      <div class="wi-en">${c.star?"⭐ ":""}${h(c.word)}</div>
-      <div class="wi-jp">${h(c.meaning)}</div>
+      <div class="wi-en" onclick="startEdit(${c.id})" title="タップして編集">${c.star?"⭐ ":""}${h(c.word)}</div>
+      <div class="wi-jp" onclick="startEdit(${c.id})" title="タップして編集">${c.unit?`<span class="unit-chip">📁 ${h(c.unit)}</span>`:''}${h(c.meaning)}</div>
       <button class="wi-del" onclick="deleteCard(${c.id})"
         style="display:${selMode?'none':''}">🗑</button>
     </div>`).join('');
@@ -2235,7 +2783,9 @@ function deleteSelected(){
   if(!checked.length){ alert('削除する単語を選択してください'); return; }
   if(!confirm(`選択した ${checked.length} 語を削除しますか？`)) return;
   const ids = new Set(checked.map(c=>parseInt(c.dataset.id)));
+  const removed = CARDS.filter(c=>ids.has(c.id));
   CARDS = CARDS.filter(c=>!ids.has(c.id));
+  (async()=>{ for (const rc of removed.sort((a,b)=>(b.gasRow||0)-(a.gasRow||0))) await deleteCardFromGAS(rc); saveCards(); })();
   saveCards(); syncSections(); buildDeck();
   selMode = false;
   renderMyWordList();
@@ -2250,7 +2800,14 @@ function cancelSelMode(){
   renderMyWordList();
 }
 
-function setStatus(msg,dur=3500){const el=document.getElementById('statusOutput');if(el){el.textContent=msg;setTimeout(()=>el.textContent='',dur);}}
+let _toastTimer=null;
+function setStatus(msg,dur=3500){
+  const el=document.getElementById('statusOutput');
+  if(el){el.textContent=msg;setTimeout(()=>{if(el.textContent===msg)el.textContent='';},dur);}
+  // どのタブにいても見える通知
+  const t=document.getElementById('toast');
+  if(t&&msg){t.textContent=msg;t.classList.add('show');clearTimeout(_toastTimer);_toastTimer=setTimeout(()=>t.classList.remove('show'),Math.max(dur,2500));}
+}
 
 /* TABS */
 function switchTab(tab){
@@ -2264,9 +2821,10 @@ function switchTab(tab){
     const hist = JSON.parse(localStorage.getItem('tango_sess_hist')||'[]');
     const now = new Date();
     const timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
-    hist.push({ time: timeStr, total: s.total, correct: s.correct, wrong: s.wrong, pct });
+    hist.push({ time: timeStr, total: s.total, correct: s.correct, wrong: s.wrong, pct, at: Date.now() });
     if (hist.length > 10) hist.splice(0, hist.length - 10);
     localStorage.setItem('tango_sess_hist', JSON.stringify(hist));
+    scheduleProgressSync();
     window._session = null;
   }
   document.querySelectorAll('.main-tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===tab));
@@ -2339,6 +2897,33 @@ function logStudyCount(){
   const keys  = Object.keys(log).sort((a,b)=>new Date(a)-new Date(b));
   if(keys.length > 30) delete log[keys[0]];
   localStorage.setItem('tango_daily_log', JSON.stringify(log));
+  logMasteryRate();
+}
+
+/* 習得率（⭐の割合）を日ごとに記録 */
+function logMasteryRate(){
+  const mine = CARDS.filter(c=>c.section==='My Words');
+  if(!mine.length) return;
+  const today = new Date().toDateString();
+  const mlog  = JSON.parse(localStorage.getItem('tango_mastery_log')||'{}');
+  mlog[today] = Math.round(mine.filter(c=>c.star).length / mine.length * 100);
+  const keys  = Object.keys(mlog).sort((a,b)=>new Date(a)-new Date(b));
+  while(keys.length > 30) delete mlog[keys.shift()];
+  localStorage.setItem('tango_mastery_log', JSON.stringify(mlog));
+}
+function renderMasteryGraph(){
+  const el = document.getElementById('masteryGraph'); if(!el) return;
+  const mlog = JSON.parse(localStorage.getItem('tango_mastery_log')||'{}');
+  const pts = [];
+  for(let i=6;i>=0;i--){ const d=new Date(Date.now()-i*86400000).toDateString(); pts.push(mlog[d]!==undefined?mlog[d]:null); }
+  const mine = CARDS.filter(c=>c.section==='My Words');
+  if(mine.length) pts[6] = Math.round(mine.filter(c=>c.star).length/mine.length*100);
+  const valid = pts.map((v,i)=>({v,i})).filter(o=>o.v!==null);
+  if(!valid.length){ el.innerHTML='<div style="text-align:center;padding:24px;font-size:0.78rem;color:var(--muted);">学習を始めると推移が表示されます</div>'; return; }
+  const W=300,H=90,T=14,B=6, x=i=>8+i*(W-16)/6, y=v=>T+(H-T-B)*(1-v/100);
+  const path = valid.map((o,k)=>`${k?'L':'M'}${x(o.i).toFixed(1)},${y(o.v).toFixed(1)}`).join(' ');
+  const dots = valid.map(o=>`<circle cx="${x(o.i).toFixed(1)}" cy="${y(o.v).toFixed(1)}" r="3.5" fill="var(--accent)"/><text x="${x(o.i).toFixed(1)}" y="${(y(o.v)-6).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--muted)">${o.v}%</text>`).join('');
+  el.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="8" x2="${W-8}" y1="${y(0)}" y2="${y(0)}" stroke="var(--border)"/>${valid.length>1?`<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`:''}${dots}</svg>`;
 }
 
 /* ── 単語インライン編集 ── */
@@ -2357,6 +2942,9 @@ function startEdit(id) {
       <input id="editMeaning_${id}" value="${h(c.meaning)}"
         style="width:100%;padding:4px 8px;border:1.5px solid var(--accent);border-radius:6px;font-size:0.83rem;font-family:inherit;"
         placeholder="日本語訳">
+      <input id="editUnit_${id}" value="${h(c.unit||'')}" list="unitList"
+        style="width:100%;padding:4px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem;font-family:inherit;"
+        placeholder="📁 単元名（任意）">
       <div style="display:flex;gap:6px;justify-content:flex-end;">
         <button onclick="saveEdit(${id})"
           style="background:var(--accent);color:white;border:none;border-radius:6px;padding:4px 12px;font-size:0.78rem;cursor:pointer;font-weight:700;">
@@ -2376,16 +2964,23 @@ async function saveEdit(id) {
   if (!c) return;
   const newWord    = document.getElementById('editWord_' + id)?.value.trim();
   const newMeaning = document.getElementById('editMeaning_' + id)?.value.trim();
+  const unitEl     = document.getElementById('editUnit_' + id);
+  if (unitEl) c.unit = unitEl.value.trim().slice(0,40);
   if (!newWord) { alert('英単語を入力してください'); return; }
+  const oldKey = srKey(c);
+  const oldWord = c.word;
   c.word    = newWord;
   c.meaning = newMeaning || c.meaning;
+  const newKey = srKey(c);
+  if (oldKey !== newKey && SR[oldKey]) { SR[newKey] = SR[oldKey]; delete SR[oldKey]; localStorage.setItem('tango_sr', JSON.stringify(SR)); }
   saveCards();
   syncSections();
   renderMyWordList();
   buildDeck();
   // GAS更新
-  if (c.row) {
-    gasPost({ action:'update', row: c.row, cards: c });
+  const gRow = c.gasRow || c.row;
+  if (gRow && gasReady) {
+    gasPost({ action:'update', row: gRow, match: oldWord, cards: c });
   }
   setStatus(`✏️ 「${newWord}」を更新しました`);
 }
@@ -2398,17 +2993,17 @@ function filterWordList(q){
   const filtered = q
     ? mine.filter(c=>
         c.word.toLowerCase().includes(q.toLowerCase()) ||
-        (c.meaning||'').includes(q))
+        (c.meaning||'').includes(q) || (c.unit||'').toLowerCase().includes(q.toLowerCase()))
     : mine;
   const el = document.getElementById('myWordList');
   if(!el) return;
-  el.innerHTML = sortCards(filtered).map(c=>`
-    <div class="word-item">
+  el.innerHTML = [...filtered].reverse().map(c=>`
+    <div class="word-item" id="wi_${c.id}">
       <input type="checkbox" class="word-check" data-id="${c.id}"
         style="display:${selMode?'block':'none'}"
         onchange="updateSelCount()">
-      <div class="wi-en">${c.star?"⭐ ":""}${h(c.word)}</div>
-      <div class="wi-jp">${h(c.meaning)}</div>
+      <div class="wi-en" onclick="startEdit(${c.id})" title="タップして編集">${c.star?"⭐ ":""}${h(c.word)}</div>
+      <div class="wi-jp" onclick="startEdit(${c.id})" title="タップして編集">${c.unit?`<span class="unit-chip">📁 ${h(c.unit)}</span>`:''}${h(c.meaning)}</div>
       <button class="wi-del" onclick="deleteCard(${c.id})"
         style="display:${selMode?'none':''}">🗑</button>
     </div>`).join('');
@@ -2418,6 +3013,7 @@ function filterWordList(q){
 }
 
 function renderStats(){
+  renderMasteryGraph();
   const total=CARDS.length,learned=CARDS.filter(c=>c.star).length,dueNow=CARDS.filter(c=>isDue(c)).length;
   const weak=Object.values(SR).filter(s=>(s.lapses||0)>=2).length,pct=total>0?(learned/total*100).toFixed(0):0;
   document.getElementById('statGrid').innerHTML=`
@@ -2538,10 +3134,147 @@ function renderStats(){
   document.getElementById('dotGrid').innerHTML=dots.map(on=>`<div class="dot${on?' on':''}"></div>`).join('');
 }
 
+/* ============================================================
+   2. 学習記録の同期（スプレッドシートの「学習記録」シート）
+   ・復習スケジュール(SM-2)・学習履歴・習得率・ストリーク・セッション履歴・目標
+   ・端末ごとの記録を統合（新しい方を採用）。リセットした時刻より古い記録は捨てる
+   ============================================================ */
+const _LS = k => { try { return JSON.parse(localStorage.getItem(k)||'null'); } catch { return null; } };
+function buildProgress(){
+  return {
+    v: 1,
+    sr: SR || {},
+    stk: STK || {last:'',count:0,history:[]},
+    log: _LS('tango_daily_log') || {},
+    mastery: _LS('tango_mastery_log') || {},
+    sess: _LS('tango_sess_hist') || [],
+    goal: { n: parseInt(localStorage.getItem('tango_goal')||'10'), t: parseInt(localStorage.getItem('tango_goal_t')||'0') },
+    resetAt: _LS('tango_reset_at') || {}
+  };
+}
+const _dayStart = ms => { const d=new Date(ms); d.setHours(0,0,0,0); return d.getTime(); };
+function _mergeDayMap(a, b, ra, rb){
+  // 日付ごとの記録: 新しい方のリセット日より前は捨て、同じ日は大きい方
+  const cut = Math.max(ra||0, rb||0), cutDay = cut ? _dayStart(cut) : 0;
+  const out = {};
+  for (const [src, r] of [[a, ra||0],[b, rb||0]]) {
+    for (const [k, v] of Object.entries(src||{})) {
+      const day = new Date(k).getTime(); if (isNaN(day)) continue;
+      if (cut && day < cutDay) continue;
+      if (cut && day === cutDay && r < cut) continue;   // リセット当日は、リセットした側の値を使う
+      out[k] = Math.max(out[k]||0, Number(v)||0);
+    }
+  }
+  return out;
+}
+function mergeProgress(L, R){
+  if (!R) return L;
+  const ra = L.resetAt||{}, rb = R.resetAt||{}, resetAt = {};
+  for (const k of new Set([...Object.keys(ra),...Object.keys(rb)])) resetAt[k] = Math.max(ra[k]||0, rb[k]||0);
+  // SM-2: 単語ごとに新しい方
+  const sr = {};
+  for (const src of [L.sr||{}, R.sr||{}]) for (const [k,v] of Object.entries(src)) {
+    const t = v.t||0; if (resetAt.sr && t < resetAt.sr) continue;
+    if (!sr[k] || t > (sr[k].t||0) || (t===(sr[k].t||0) && (v.reps||0) > (sr[k].reps||0))) sr[k] = v;
+  }
+  const log = _mergeDayMap(L.log, R.log, ra.log, rb.log);
+  const mastery = _mergeDayMap(L.mastery, R.mastery, ra.mastery, rb.mastery);
+  // ストリーク: 学習した日を合わせて数え直す
+  const cutS = resetAt.stk ? _dayStart(resetAt.stk) : 0;
+  const days = [...new Set([...(L.stk?.history||[]), ...(R.stk?.history||[])])]
+    .map(d=>new Date(d).getTime()).filter(t=>!isNaN(t) && t>=cutS).sort((a,b)=>a-b);
+  let stk = {last:'',count:0,history:[]};
+  if (days.length) {
+    let count = 1;
+    for (let i=days.length-1;i>0;i--){ if (Math.round((days[i]-days[i-1])/86400000)===1) count++; else break; }
+    stk = { last: new Date(days[days.length-1]).toDateString(), count, history: days.slice(-30).map(t=>new Date(t).toDateString()) };
+  }
+  // セッション履歴
+  const seen = new Set(), sess = [];
+  for (const e of [...(L.sess||[]), ...(R.sess||[])]) {
+    if (resetAt.sess && (e.at||0) < resetAt.sess) continue;
+    const key = e.at ? 'a'+e.at : JSON.stringify(e);
+    if (seen.has(key)) continue; seen.add(key); sess.push(e);
+  }
+  sess.sort((a,b)=>(a.at||0)-(b.at||0));
+  const goal = (R.goal?.t||0) > (L.goal?.t||0) ? R.goal : L.goal;
+  return { v:1, sr, stk, log, mastery, sess: sess.slice(-10), goal, resetAt };
+}
+function packProgress(P){
+  const sr = {};
+  for (const [k,v] of Object.entries(P.sr||{})) {
+    const kk = k.startsWith('My_Words__') ? '~'+k.slice(10) : k;
+    sr[kk] = [v.interval||0, Math.round((v.ease||2.5)*100), Math.round((v.due||0)/60000), v.reps||0, v.lapses||0, Math.round((v.t||0)/60000)];
+  }
+  return { ...P, v:2, sr };
+}
+function unpackProgress(P){
+  if (!P || P.v !== 2) return P;
+  const sr = {};
+  for (const [kk,a] of Object.entries(P.sr||{})) {
+    const k = kk.startsWith('~') ? 'My_Words__'+kk.slice(1) : kk;
+    sr[k] = { interval:a[0], ease:a[1]/100, due:a[2]*60000, reps:a[3], lapses:a[4], t:a[5]*60000 };
+  }
+  return { ...P, v:1, sr };
+}
+function applyProgress(P){
+  SR = P.sr; STK = P.stk;
+  localStorage.setItem('tango_sr', JSON.stringify(P.sr));
+  localStorage.setItem('tango_stk', JSON.stringify(P.stk));
+  localStorage.setItem('tango_daily_log', JSON.stringify(P.log));
+  localStorage.setItem('tango_mastery_log', JSON.stringify(P.mastery));
+  localStorage.setItem('tango_sess_hist', JSON.stringify(P.sess));
+  if (P.goal) { localStorage.setItem('tango_goal', String(P.goal.n||10)); localStorage.setItem('tango_goal_t', String(P.goal.t||0)); }
+  localStorage.setItem('tango_reset_at', JSON.stringify(P.resetAt||{}));
+  updateDueBadge(); updateReviewPill && updateReviewPill();
+  if (document.querySelector('.main-tab.active')?.dataset.tab === 'stats') renderStats();
+}
+let _progTimer = null, _progBusy = false, _progAgain = false, _progOldGasNoticed = false;
+function scheduleProgressSync(ms=8000){
+  clearTimeout(_progTimer);
+  _progTimer = setTimeout(syncProgress, ms);
+}
+async function syncProgress(){
+  if (!gasReady) return;
+  if (gasVersion < 5) {
+    if (!_progOldGasNoticed) { _progOldGasNoticed = true;
+      setTimeout(()=>setStatus('ℹ️ GASを最新版（v5）に更新すると、学習記録もスプレッドシートに保存されます', 6000), 1500); }
+    return;
+  }
+  if (_progBusy) { _progAgain = true; return; }
+  _progBusy = true;
+  try {
+    const res = await gasGet({ action:'loadProgress' });
+    if (!res || res.error) throw new Error(res && res.error || 'load failed');
+    let remote = null;
+    try { remote = res.progress ? unpackProgress(JSON.parse(res.progress)) : null; } catch { remote = null; }
+    const merged = mergeProgress(buildProgress(), remote);
+    applyProgress(merged);
+    const json = JSON.stringify(packProgress(merged));
+    if (res.progress === json) return;   // 変化なし
+    const CH = 1800, total = Math.max(1, Math.ceil(json.length / CH));
+    const sid = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    for (let i = 0; i < total; i++) {
+      const r = await gasGet({ action:'saveProgress', sid, part:i, total, data: json.slice(i*CH, (i+1)*CH) });
+      if (!r || r.error) throw new Error('save failed');
+    }
+  } catch (e) {
+    console.warn('学習記録の同期に失敗:', e);
+  } finally {
+    _progBusy = false;
+    if (_progAgain) { _progAgain = false; scheduleProgressSync(2000); }
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && _progTimer) { clearTimeout(_progTimer); _progTimer = null; syncProgress(); }
+});
+
 /* 目標枚数を設定 */
 function setDailyGoal(n) {
   localStorage.setItem('tango_goal', String(n));
+  localStorage.setItem('tango_goal_t', String(Date.now()));
   renderStats(); // 即座に反映
+  scheduleProgressSync();
 }
 
 function dismissBanner(){document.getElementById('installBanner').style.display='none';localStorage.setItem('tango_banner','1');}
@@ -2554,7 +3287,11 @@ let _touchMoved  = false;
 const SWIPE_THRESHOLD = 40;  // スワイプ判定の最小ピクセル
 const SWIPE_RATIO     = 1.5;
 
+let _touchIgnore = false;
+setTimeout(()=>{ if(!navigator.share){ const b=document.getElementById('shareNativeBtn'); if(b) b.style.display='none'; } syncSections(); }, 0);
+setTimeout(()=>{ if (('ontouchstart' in window) || navigator.maxTouchPoints>0) { const bh=document.getElementById('backHint'); if(bh) bh.textContent='← もう一度 ／ タップで戻る ／ 簡単 →'; } }, 0);
 function onCardTouchStart(e) {
+  _touchIgnore = !!(e.target.closest && e.target.closest('input,button,textarea,select'));
   const t = e.touches[0];
   _touchStartX = t.clientX;
   _touchStartY = t.clientY;
@@ -2571,7 +3308,19 @@ function onCardTouchEnd(e) {
   const dy = t.clientY - _touchStartY;
   const adx = Math.abs(dx), ady = Math.abs(dy);
 
-  // (1) 左右スワイプ → カード切替
+  if (_touchIgnore) return;
+  // (6) 裏面で左右スワイプ → 評価（右: 😊簡単 / 左: 😓もう一度）
+  if (flipped && adx >= SWIPE_THRESHOLD && adx > ady * SWIPE_RATIO) {
+    e.preventDefault();
+    stopAutoIfManual();
+    const card = document.getElementById('flashCard');
+    const cls = dx > 0 ? 'swipe-ok' : 'swipe-ng';
+    card.classList.remove('swipe-ok','swipe-ng'); void card.offsetWidth; card.classList.add(cls);
+    setTimeout(()=>card.classList.remove(cls), 300);
+    if (dx > 0) { rateCard(3); setStatus('😊 簡単', 1200); } else { rateCard(0); setStatus('😓 もう一度', 1200); }
+    return;
+  }
+  // (1) 表面で左右スワイプ → カード切替
   if (adx >= SWIPE_THRESHOLD && adx > ady * SWIPE_RATIO) {
     e.preventDefault();
     stopAutoIfManual();
@@ -2679,6 +3428,8 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Enter' && (e.target.id==='addWord'||e.target.id==='addMeaning')){
     e.preventDefault(); manualAdd(); return;
   }
+  if(e.key==='Enter' && e.target.id==='spellInput'){ e.preventDefault(); checkSpell(); return; }
+  if((e.key==='Enter'||e.key===' ') && _pendingAutoRate!==null && !['INPUT','TEXTAREA'].includes(e.target.tagName)){ e.preventDefault(); applyAutoRate(); return; }
   if(['INPUT','TEXTAREA'].includes(e.target.tagName))return;
   if(e.key===' '||e.key==='Enter'){e.preventDefault();flip();}
   if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')prev();
@@ -2921,7 +3672,7 @@ async function addWordFromOCR(word) {
   if (!word) return;
   word = word.toLowerCase().replace(/[^a-z\-]/g,'').replace(/^-+|-+$/g,'');
   if (word.length < 2) return;
-  const inp = document.getElementById('addWordInput');
+  const inp = document.getElementById('addWord');
   if (inp) {
     inp.value = word;
     inp.focus();
@@ -2930,5 +3681,15 @@ async function addWordFromOCR(word) {
 }
 /* ── OCR機能 ここまで ── */
 </script>
+<div id="toast" role="status" aria-live="polite"></div>
+<div class="modal-ov" id="delAllModal" onclick="if(event.target===this)closeDelAll()">
+  <div class="modal-box">
+    <h3>🗑 マイ単語帳を全削除</h3>
+    <p id="delAllMsg"></p>
+    <button class="modal-btn" id="delAllArchive" onclick="runDeleteAll('archive')">削除して、スプレッドシートにバックアップを残す<small>シートの単語は「バックアップ_日付」シートに移します（おすすめ）</small></button>
+    <button class="modal-btn danger" id="delAllClear" onclick="runDeleteAll('clear')">アプリとスプレッドシートから完全に削除<small>元に戻せません</small></button>
+    <button class="modal-btn modal-cancel" onclick="closeDelAll()">やめる</button>
+  </div>
+</div>
 </body>
 </html>
