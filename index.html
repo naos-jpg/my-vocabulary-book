@@ -986,7 +986,13 @@ function loadDict(name) {
 }
 
 function loadEJDict()   { return loadDict('ejdict.js'); }
-function loadEJPOS()    { return loadDict('ejdict_pos.js'); }
+// 品詞別辞書の補足（元の辞書に欠けている品詞）
+const POS_FIX = {
+  smooth: { verb: '滑らかにする、平らにする、円滑にする、（しわなどを）伸ばす' },
+};
+function loadEJPOS()    { return loadDict('ejdict_pos.js').then(()=>{
+  if (window.EJDICT_POS && !window._posFixed) { window._posFixed = true;
+    for (const [w,v] of Object.entries(POS_FIX)) window.EJDICT_POS[w] = Object.assign({}, window.EJDICT_POS[w]||{}, v); } }); }
 function loadEJSupp()   { return loadDict('ejdict_supp.js'); }
 function loadJAENDict() { return loadDict('jaen.js'); }
 function loadEXDict()   { return loadDict('exdict.js'); }
@@ -1137,7 +1143,12 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(isIOS&&!window.navigator.standalone&&!localStorage.getItem('tango_banner'))
     document.getElementById('installBanner').style.display='flex';
 
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    // 新しい版が届いたら1回だけ自動で読み込み直す（初回インストール時は除く）
+    const hadCtrl = !!navigator.serviceWorker.controller; let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{ if(hadCtrl && !reloaded){ reloaded = true; location.reload(); } });
+  }
 
   ['readerText','ocrPreview'].forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
@@ -1162,7 +1173,7 @@ function showScreen(n){
 
 function initApp(){
   loadCards();
-  initGAS();   // initGAS 内部で接続状態を管理
+  initGAS().finally(()=>setTimeout(repairOldMeanings, 1500));   // initGAS 内部で接続状態を管理
 }
 
 /* ============================================================
@@ -1305,6 +1316,8 @@ async function loadFromGAS() {
 
   // 端末側の単元（旧GASは単元を保存できないため）
   const localUnit = new Map(CARDS.filter(c=>c.unit).map(c=>[c.word, c.unit]));
+  // 端末だけの印（自分で入れた訳・例文の和訳など、シートに列がないもの）を引き継ぐ
+  const localOld = new Map(CARDS.map(c=>[c.word, c]));
   const needUnitPush = [];
   // IDを付与
   const imported = res.cards.map((c,i)=>({
@@ -1315,6 +1328,10 @@ async function loadFromGAS() {
     star: c.star, gasRow: c.row, addedAt: c.addedAt||'',  // GASのrow番号を保持
     unit: c.unit || localUnit.get(c.word) || ''
   }));
+  imported.forEach(c => { const o = localOld.get(c.word); if (!o) return;
+    if (o.userMeaning) c.userMeaning = true;
+    if (o.mchk && o.meaning === c.meaning) c.mchk = 1;
+    if (o.exJa && o.ex === c.ex) c.exJa = o.exJa; });
   if (gasVersion >= 6) imported.forEach(c => { if (c.unit && !res.cards.find(r=>r.word===c.word)?.unit) needUnitPush.push(c); });
 
   CARDS = [...imported, ...localOnly];
@@ -2018,6 +2035,96 @@ async function collectAllPOS(word) {
   return results.length ? results : [{ pos: dict.pos||'', jp:'(訳語なし)' }];
 }
 
+// 不規則変化（辞書の見出しにない活用形・複数形）
+const IRREG_WORDS = new Set('alumni am analyses appendices are arisen arose ate awoke awoken bacteria bases beat beaten became been began begun bent best bet better bit bitten bled blew blown bore borne bought bred broadcast broke broken brought built burned burnt burst cacti calves came cast caught children chose chosen clung cost crept crises criteria curricula cut data dealt diagnoses did done drank drawn dreamt drew driven drove drunk dug eaten elder eldest elves fallen farther farthest fed feet fell felt fled flew flown flung forbade forbidden forgave forgiven forgot forgotten fought found froze frozen fungi further furthest gave geese given gone got gotten grew ground grown had halves heard held hid hidden hit hung hurt hypotheses indices is kept knelt knew knives known laid lain lay leant leapt learnt least leaves led left lent less let lice lit lives loaves lost made matrices meant media memoranda men met mice mistaken mistook more most nuclei oases ourselves overcame overcome overtaken overtook oxen paid parentheses people phenomena proved proven put quit radii ran rang read ridden risen rode rose rung said sang sank sat saw seen selves sent set sewn shaken sheaves shed shelves shone shook shot showed shown shrank shrunk shut slept slid slung smelt sold sought sowed sown spat sped spelt spent spilt split spoilt spoke spoken sprang spread sprung spun stank stimuli stole stolen stood strata striven strode strove struck strung stuck stung stunk sung sunk swam swelled swept swollen swore sworn swum swung syllabi taken taught teeth themselves theses thieves thought threw thrown thrust told took tore torn trod trodden understood undertaken undertook undid undone upset vertices was went wept were wet withdrawn withdrew wives woke woken wolves women won wore worn worse worst wound wove woven written wrote wrung yourselves'.split(' '));
+/* つづりの確認: 辞書にない語なら、1文字違いの辞書の語を候補として返す（smoothe → smooth） */
+function _knownWord(w){
+  const l = w.toLowerCase();
+  if (IRREG_WORDS.has(l) || /^(has|does|goes|pence|dice|minutiae)$/.test(l)) return true;
+  const E = window.EJDICT_POS||{}, J = window.EJDICT||{}, S = window.EJSUPP||{}, C = window.CEFR_J||{};
+  const hit = x => !!(x && x.length > 1 && (E[x] || J[x] || S[x] || C[x]));
+  if (E[w] || C[w] || hit(l) || ejdictDirect(w)) return true;
+  // 変化形（-s/-es/-ies, -ed/-d/-ied, -ing, 子音字を重ねる形, -er/-est）とイギリス式のつづり
+  const forms = [l.replace(/s$/,''), l.replace(/es$/,''), l.replace(/ies$/,'y'), l.replace(/ed$/,''), l.replace(/d$/,''),
+    l.replace(/ied$/,'y'), l.replace(/ing$/,''), l.replace(/ing$/,'e'), l.replace(/([b-df-hj-np-tv-z])\1(ed|ing|er|est)$/,'$1'),
+    l.replace(/er$/,''), l.replace(/est$/,''), l.replace(/r$/,''), l.replace(/st$/,''), l.replace(/ier$/,'y'), l.replace(/iest$/,'y'),
+    l.replace(/is(e|ed|es|ing|ation)$/,'iz$1'), l.replace(/ys(e|ed|es|ing)$/,'yz$1'), l.replace(/our$/,'or'), l.replace(/our(s|ed|ing|ite|ful)$/,'or$1'),
+    l.replace(/tre$/,'ter'), l.replace(/ogue$/,'og'), l.replace(/ence$/,'ense'), l.replace(/ll(ed|ing|er)$/,'l$1')];
+  return forms.some(x => x !== l && hit(x));
+}
+async function suggestSpelling(word){
+  if (!/^[A-Za-z]{3,}$/.test(word||'')) return '';
+  await loadEJDict(); await loadEJPOS();
+  if (!window.EJDICT_POS || _knownWord(word)) return '';
+  const w = word.toLowerCase(), E = window.EJDICT_POS, ab = 'abcdefghijklmnopqrstuvwxyz', cand = new Set();
+  for (let i = 0; i <= w.length; i++) {
+    for (const ch of ab) cand.add(w.slice(0,i)+ch+w.slice(i));                 // 1文字足りない
+    if (i < w.length) {
+      cand.add(w.slice(0,i)+w.slice(i+1));                                     // 1文字多い
+      for (const ch of ab) cand.add(w.slice(0,i)+ch+w.slice(i+1));             // 1文字違う
+      if (i < w.length-1) cand.add(w.slice(0,i)+w[i+1]+w[i]+w.slice(i+2));     // 入れ替わり
+    }
+  }
+  cand.delete(w);
+  const hits = [...cand].filter(c => E[c]);
+  if (!hits.length) return '';
+  const C = window.CEFR_J||{}, L = {A1:1,A2:2,B1:3,B2:4,C1:5,C2:6};
+  const rank = c => (L[C[c]]||9) - (w.startsWith(c) ? 0.5 : 0) - (c.length===w.length ? 0.2 : 0);
+  hits.sort((a,b)=>rank(a)-rank(b));
+  return hits[0];
+}
+
+/* 辞書サーバー停止中などに登録された古い訳（品詞なし・1行）を品詞別の訳に直す
+   ・自分で編集した訳（userMeaning）は触らない
+   ・古い訳の語がすべて新しい訳に含まれる時、またはカタカナだけ／訳語なしの時だけ置き換える */
+function _posMeaningLocal(word){
+  const E = window.EJDICT_POS; if (!E) return '';
+  const d = E[word] || E[word.toLowerCase()]; if (!d) return '';
+  const ORD = ['verb','noun','adjective','adverb','preposition','conjunction','pronoun'];
+  const list = Object.entries(d).filter(([,jp])=>jp&&hasJP(jp))
+    .sort((a,b)=>{const ai=ORD.indexOf(a[0]),bi=ORD.indexOf(b[0]);return (ai<0?9:ai)-(bi<0?9:bi);});
+  return list.map(([p,jp])=>{const l=posToJA(p);return l?`${l}: ${jp}`:jp;}).join('\n');
+}
+function repairMeaning(c){
+  if (!c || c.mchk || c.userMeaning || !c.word) return false;
+  const old = String(c.meaning||'').trim();
+  if (/(名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞|助動詞)\s*[:：]/.test(old)) { c.mchk = 1; return false; }
+  if (!window.EJDICT_POS) return false;            // 辞書の読み込み待ち（次の機会に再確認）
+  c.mchk = 1;
+  const nw = _posMeaningLocal(c.word); if (!nw || !/[:：]/.test(nw)) return false;
+  const flat = nw.replace(/[\s（）()「」]/g,'');
+  const pieces = old.split(/[、,，・;；\/\s（）()「」]+/).map(x=>x.trim()).filter(Boolean);
+  const ok = !old || /訳語なし|翻訳エラー/.test(old) || /^[ァ-ヿー・\s]+$/.test(old) ||
+             (pieces.length && pieces.every(x=>flat.includes(x)));
+  if (!ok) return false;
+  c.meaning = nw;
+  return true;
+}
+let _repairRunning = false;
+async function repairOldMeanings(){
+  if (_repairRunning) return; _repairRunning = true;
+  try {
+    const targets = CARDS.filter(c=>c.section==='My Words' && !c.mchk && !c.userMeaning);
+    if (!targets.length) return;
+    await loadEJPOS();
+    const fixed = targets.filter(c=>repairMeaning(c));
+    saveCards();
+    if (!fixed.length) return;
+    renderMyWordList(); if (deck.length) renderMeaningOnly();
+    setStatus(`🔧 ${fixed.length}語の訳を品詞ごとに整えました`);
+    if (gasReady) for (const c of fixed) if (c.gasRow) await gasPost({ action:'update', row:c.gasRow, match:c.word, cards:c });
+  } catch(e) { console.warn('repairOldMeanings', e); }
+  finally { _repairRunning = false; }
+}
+/* 表示中のカードの訳だけを書き直す（発音を鳴らさない） */
+function renderMeaningOnly(){
+  const c = currentCard(); if (!c) return;
+  const m = (c.meaning||'').replace(/ \/ (?=名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞)/g, '\n');
+  if (dir==='en2jp') document.getElementById('backMeaning').textContent = m;
+  else if (dir==='jp2en') document.getElementById('frontWord').textContent = m;
+  else { const bs=document.getElementById('backSub'); if (bs) bs.textContent = c.meaning||''; }
+}
+
 /* 全品詞まとめて表示用文字列を生成 */
 async function autoTranslateAllPOS(word) {
   try {
@@ -2051,8 +2158,8 @@ async function autoTranslateWithContext(word, contextText) {
     // MyMemory に文脈付きで問い合わせ
     if (contextText && contextText.length > 5) {
       const sents = contextText.replace(/([.!?])\s+/g,'$1|').split('|').map(s=>s.trim()).filter(s=>s.length>3);
-      // esc removed
-      const sent  = sents.find(s => new RegExp('\b'+esc+'\b','i').test(s)) || '';
+      const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const sent  = sents.find(s => new RegExp('\\b'+esc+'\\b','i').test(s)) || '';
       if (sent && sent.length < 200) {
         const t = await myMemQuery(`${word} (${sent.slice(0,80)})`);
         if (t && hasJP(t) && t.length <= 20) return t;
@@ -2512,18 +2619,26 @@ function exportAnki() {
 
 /* (5) MANUAL ADD — MyMemory翻訳 */
 async function manualAdd(){
-  const word=document.getElementById('addWord').value.trim();
+  let word=document.getElementById('addWord').value.trim();
   let meaning=document.getElementById('addMeaning').value.trim();
   if(!word){alert('英単語を入力してください');return;}
   if(CARDS.find(c=>c.word===word)){alert(`「${word}」はすでに登録されています`);return;}
   const addBtn=document.getElementById('addBtn');
-  addBtn.textContent='翻訳中…';addBtn.disabled=true;
+  addBtn.textContent='確認中…';addBtn.disabled=true;
+  const sug = await suggestSpelling(word);
+  if (sug && confirm(`「${word}」は辞書に見つかりません。\n「${sug}」のまちがいではありませんか？\n\nOK … 「${sug}」で登録する\nキャンセル … 「${word}」のまま登録する`)) {
+    word = sug; document.getElementById('addWord').value = sug;
+    if(CARDS.find(c=>c.word===word)){alert(`「${word}」はすでに登録されています`);addBtn.textContent='追加';addBtn.disabled=false;return;}
+  }
+  addBtn.textContent='翻訳中…';
   // (2a) 辞書の定義を使って最も一般的な意味を取得
+  const typed = !!meaning;
   if(!meaning) meaning = await autoTranslate(word);
   const dictData = await fetchDict(word);
   const card={id:Date.now(),section:'My Words',word,meaning,
     pos:dictData.pos||'',ipa:dictData.ipa||'',def:dictData.def||'',ex:dictData.ex||'',exJa:dictData.exJa||'',
     cefr:estimateCEFR(word),star:false};
+  if(typed) card.userMeaning=true;
   CARDS.push(card);saveCards();syncSections();renderMyWordList();buildDeck();
   document.getElementById('addWord').value='';document.getElementById('addMeaning').value='';
   addBtn.textContent='追加';addBtn.disabled=false;
@@ -2557,7 +2672,17 @@ async function bulkAdd(){
   const um = ta.value.match(/^\s*#\s*単元\s*[:：]\s*(.+)$/m);
   const unit = (document.getElementById('bulkUnit').value.trim() || (um ? um[1].trim() : '')).slice(0,40);
   const byWord = new Map(CARDS.map(c=>[c.word.toLowerCase(), c]));
-  const todo = items.filter(it => !byWord.has(it.word.toLowerCase()));
+  // つづりの確認（辞書にない語は候補を出す）
+  if (!_bulkBusy) {
+    pr.textContent = 'つづりを確認中…';
+    const fixes = [];
+    for (const it of items) { if (byWord.has(it.word.toLowerCase())) continue; const sg = await suggestSpelling(it.word); if (sg) fixes.push([it, sg]); }
+    pr.textContent = '';
+    if (fixes.length && confirm(`辞書に見つからない語があります。\n\n${fixes.map(([it,sg])=>`${it.word} → ${sg}`).join('\n')}\n\nOK … 右の正しいつづりで登録する\nキャンセル … そのまま登録する`))
+      fixes.forEach(([it,sg]) => { it.word = sg; });
+  }
+  const _seen = new Set();
+  const todo = items.filter(it => { const k = it.word.toLowerCase(); if (byWord.has(k) || _seen.has(k)) return false; _seen.add(k); return true; });
   const skipped = items.length - todo.length;
   // 登録済みの単語にも単元を付ける（単元が無い場合のみ）
   const tagged = [];
@@ -2570,7 +2695,7 @@ async function bulkAdd(){
   const added = [];
   try {
     for (let i = 0; i < todo.length; i++) {
-      const { word } = todo[i]; let { meaning } = todo[i];
+      const { word } = todo[i]; let { meaning } = todo[i]; const typed = !!meaning;
       pr.textContent = `登録中… ${i+1} / ${todo.length}（${word}）`;
       if (!meaning) meaning = await autoTranslate(word);
       else meaning = meaning.replace(/ \/ (?=(名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞|助動詞)[:：])/g, '\n');
@@ -2578,6 +2703,7 @@ async function bulkAdd(){
       const card = { id: Date.now() + i, section:'My Words', word, meaning,
         pos:d.pos||'', ipa:d.ipa||'', def:d.def||'', ex:d.ex||'', exJa:d.exJa||'',
         cefr: estimateCEFR(word), star:false, addedAt: new Date().toLocaleDateString('ja-JP'), unit };
+      if (typed) card.userMeaning = true;
       CARDS.push(card); added.push(card);
       if ((i+1) % 10 === 0) saveCards();
     }
@@ -2970,6 +3096,7 @@ async function saveEdit(id) {
   const oldKey = srKey(c);
   const oldWord = c.word;
   c.word    = newWord;
+  if (newMeaning && newMeaning !== c.meaning) c.userMeaning = true;
   c.meaning = newMeaning || c.meaning;
   const newKey = srKey(c);
   if (oldKey !== newKey && SR[oldKey]) { SR[newKey] = SR[oldKey]; delete SR[oldKey]; localStorage.setItem('tango_sr', JSON.stringify(SR)); }
