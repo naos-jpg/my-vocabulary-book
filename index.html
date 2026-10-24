@@ -992,9 +992,12 @@ const POS_FIX = {
   was:  { verb: '〜だった、〜であった、（〜に）いた、あった（be の過去形）' },
   were: { verb: '〜だった、〜であった、（〜に）いた、あった（be の過去形）' },
 };
-function loadEJPOS()    { return loadDict('ejdict_pos.js').then(()=>{
+function loadEJPOS()    { return Promise.all([loadDict('ejdict_pos.js'), loadDict('ejdict_pos_add.js')]).then(()=>{
   if (window.EJDICT_POS && !window._posFixed) { window._posFixed = true;
-    for (const [w,v] of Object.entries(POS_FIX)) window.EJDICT_POS[w] = Object.assign({}, window.EJDICT_POS[w]||{}, v); } }); }
+    const E = window.EJDICT_POS, jp = /[぀-ヿ一-鿿]/;
+    // 補完辞書（book・dog・Monday など、品詞別辞書から抜けていた約1,500語）は、元の辞書に無い語だけ足す
+    for (const [w,v] of Object.entries(window.EJDICT_POS_ADD || {})) { const e = E[w]; if (!e || !Object.values(e).some(x => x && jp.test(x))) E[w] = v; }
+    for (const [w,v] of Object.entries(POS_FIX)) E[w] = Object.assign({}, E[w]||{}, v); } }); }
 function loadEJSupp()   { return loadDict('ejdict_supp.js'); }
 function loadJAENDict() { return loadDict('jaen.js'); }
 function loadEXDict()   { return loadDict('exdict.js'); }
@@ -1332,7 +1335,7 @@ async function loadFromGAS() {
   }));
   imported.forEach(c => { const o = localOld.get(c.word); if (!o) return;
     if (o.userMeaning) c.userMeaning = true;
-    if (o.mchk && o.meaning === c.meaning) c.mchk = 1;
+    if (o.mchk && o.meaning === c.meaning) c.mchk = o.mchk;
     if (o.exJa && o.ex === c.ex) c.exJa = o.exJa; });
   if (gasVersion >= 6) imported.forEach(c => { if (c.unit && !res.cards.find(r=>r.word===c.word)?.unit) needUnitPush.push(c); });
 
@@ -1637,8 +1640,12 @@ function matchSection(c){
 /* CEFR推定（ejdictの単語番号を使って推定） */
 const CEFR_L = ['A1','A2','B1','B2','C1','C2'];
 const CEFR_STOP = new Set("to a an the of up off on in out for with at by from into about over down away back one oneself one's someone something somebody sb sth and or as".split(' '));
+let _cefrExpanded = false;
 function estimateCEFR(word) {
   if (!word) return 'B1';
+  // CEFR-J の「color/colour」のような見出しを1語ずつ引けるようにする
+  if (!_cefrExpanded && window.CEFR_J) { _cefrExpanded = true; const CJ = window.CEFR_J;
+    for (const k of Object.keys(CJ)) if (k.includes('/')) for (const v of k.split('/')) { const t = v.trim().replace(/\.$/,''); if (t && !CJ[t]) CJ[t] = CJ[k]; } }
   const C = window.CEFR_J || {}, w = String(word).trim(), l = w.toLowerCase();
   if (C[w]) return C[w];
   if (C[l]) return C[l];
@@ -1925,6 +1932,7 @@ function posToJA(pos) {
   if (p.includes('preposition')) return '前置詞';
   if (p.includes('conjunction')) return '接続詞';
   if (p.includes('pronoun'))     return '代名詞';
+  if (p.includes('interjection')) return '間投詞';
   return '';
 }
 
@@ -2048,7 +2056,7 @@ async function collectAllPOS(word) {
 // 不規則変化（辞書の見出しにない活用形・複数形）
 const IRREG_WORDS = new Set('alumni am analyses appendices are arisen arose ate awoke awoken bacteria bases beat beaten became been began begun bent best bet better bit bitten bled blew blown bore borne bought bred broadcast broke broken brought built burned burnt burst cacti calves came cast caught children chose chosen clung cost crept crises criteria curricula cut data dealt diagnoses did done drank drawn dreamt drew driven drove drunk dug eaten elder eldest elves fallen farther farthest fed feet fell felt fled flew flown flung forbade forbidden forgave forgiven forgot forgotten fought found froze frozen fungi further furthest gave geese given gone got gotten grew ground grown had halves heard held hid hidden hit hung hurt hypotheses indices is kept knelt knew knives known laid lain lay leant leapt learnt least leaves led left lent less let lice lit lives loaves lost made matrices meant media memoranda men met mice mistaken mistook more most nuclei oases ourselves overcame overcome overtaken overtook oxen paid parentheses people phenomena proved proven put quit radii ran rang read ridden risen rode rose rung said sang sank sat saw seen selves sent set sewn shaken sheaves shed shelves shone shook shot showed shown shrank shrunk shut slept slid slung smelt sold sought sowed sown spat sped spelt spent spilt split spoilt spoke spoken sprang spread sprung spun stank stimuli stole stolen stood strata striven strode strove struck strung stuck stung stunk sung sunk swam swelled swept swollen swore sworn swum swung syllabi taken taught teeth themselves theses thieves thought threw thrown thrust told took tore torn trod trodden understood undertaken undertook undid undone upset vertices was went wept were wet withdrawn withdrew wives woke woken wolves women won wore worn worse worst wound wove woven written wrote wrung yourselves'.split(' '));
 // 不規則変化 → 原形と種類（went → go の過去形）
-const IRREG_BASE = {"arose":{"b":"arise","k":"過去形"},"arisen":{"b":"arise","k":"過去分詞"},"awoke":{"b":"awake","k":"過去形"},"awoken":{"b":"awake","k":"過去分詞"},"was":{"b":"be","k":"過去形"},"were":{"b":"be","k":"過去形"},"been":{"b":"be","k":"過去分詞"},"bore":{"b":"bear","k":"過去形"},"borne":{"b":"bear","k":"過去分詞"},"beaten":{"b":"beat","k":"過去分詞"},"became":{"b":"become","k":"過去形"},"began":{"b":"begin","k":"過去形"},"begun":{"b":"begin","k":"過去分詞"},"bent":{"b":"bend","k":"過去形・過去分詞"},"bit":{"b":"bite","k":"過去形"},"bitten":{"b":"bite","k":"過去分詞"},"bled":{"b":"bleed","k":"過去形・過去分詞"},"blew":{"b":"blow","k":"過去形"},"blown":{"b":"blow","k":"過去分詞"},"broke":{"b":"break","k":"過去形"},"broken":{"b":"break","k":"過去分詞"},"bred":{"b":"breed","k":"過去形・過去分詞"},"brought":{"b":"bring","k":"過去形・過去分詞"},"built":{"b":"build","k":"過去形・過去分詞"},"burnt":{"b":"burn","k":"過去形・過去分詞"},"bought":{"b":"buy","k":"過去形・過去分詞"},"caught":{"b":"catch","k":"過去形・過去分詞"},"chose":{"b":"choose","k":"過去形"},"chosen":{"b":"choose","k":"過去分詞"},"clung":{"b":"cling","k":"過去形・過去分詞"},"came":{"b":"come","k":"過去形"},"crept":{"b":"creep","k":"過去形・過去分詞"},"dealt":{"b":"deal","k":"過去形・過去分詞"},"dug":{"b":"dig","k":"過去形・過去分詞"},"did":{"b":"do","k":"過去形"},"done":{"b":"do","k":"過去分詞"},"drew":{"b":"draw","k":"過去形"},"drawn":{"b":"draw","k":"過去分詞"},"dreamt":{"b":"dream","k":"過去形・過去分詞"},"drank":{"b":"drink","k":"過去形"},"drunk":{"b":"drink","k":"過去分詞"},"drove":{"b":"drive","k":"過去形"},"driven":{"b":"drive","k":"過去分詞"},"ate":{"b":"eat","k":"過去形"},"eaten":{"b":"eat","k":"過去分詞"},"fell":{"b":"fall","k":"過去形"},"fallen":{"b":"fall","k":"過去分詞"},"fed":{"b":"feed","k":"過去形・過去分詞"},"felt":{"b":"feel","k":"過去形・過去分詞"},"fought":{"b":"fight","k":"過去形・過去分詞"},"found":{"b":"find","k":"過去形・過去分詞"},"fled":{"b":"flee","k":"過去形・過去分詞"},"flung":{"b":"fling","k":"過去形・過去分詞"},"flew":{"b":"fly","k":"過去形"},"flown":{"b":"fly","k":"過去分詞"},"forbade":{"b":"forbid","k":"過去形"},"forbidden":{"b":"forbid","k":"過去分詞"},"forgot":{"b":"forget","k":"過去形"},"forgotten":{"b":"forget","k":"過去分詞"},"forgave":{"b":"forgive","k":"過去形"},"forgiven":{"b":"forgive","k":"過去分詞"},"froze":{"b":"freeze","k":"過去形"},"frozen":{"b":"freeze","k":"過去分詞"},"got":{"b":"get","k":"過去形"},"gotten":{"b":"get","k":"過去分詞"},"gave":{"b":"give","k":"過去形"},"given":{"b":"give","k":"過去分詞"},"went":{"b":"go","k":"過去形"},"gone":{"b":"go","k":"過去分詞"},"ground":{"b":"grind","k":"過去形・過去分詞"},"grew":{"b":"grow","k":"過去形"},"grown":{"b":"grow","k":"過去分詞"},"hung":{"b":"hang","k":"過去形・過去分詞"},"had":{"b":"have","k":"過去形・過去分詞"},"heard":{"b":"hear","k":"過去形・過去分詞"},"hid":{"b":"hide","k":"過去形"},"hidden":{"b":"hide","k":"過去分詞"},"held":{"b":"hold","k":"過去形・過去分詞"},"kept":{"b":"keep","k":"過去形・過去分詞"},"knelt":{"b":"kneel","k":"過去形・過去分詞"},"knew":{"b":"know","k":"過去形"},"known":{"b":"know","k":"過去分詞"},"laid":{"b":"lay","k":"過去形・過去分詞"},"led":{"b":"lead","k":"過去形・過去分詞"},"leant":{"b":"lean","k":"過去形・過去分詞"},"leapt":{"b":"leap","k":"過去形・過去分詞"},"learnt":{"b":"learn","k":"過去形・過去分詞"},"left":{"b":"leave","k":"過去形・過去分詞"},"lent":{"b":"lend","k":"過去形・過去分詞"},"lay":{"b":"lie","k":"過去形"},"lain":{"b":"lie","k":"過去分詞"},"lit":{"b":"light","k":"過去形・過去分詞"},"lost":{"b":"lose","k":"過去形・過去分詞"},"made":{"b":"make","k":"過去形・過去分詞"},"meant":{"b":"mean","k":"過去形・過去分詞"},"met":{"b":"meet","k":"過去形・過去分詞"},"mistook":{"b":"mistake","k":"過去形"},"mistaken":{"b":"mistake","k":"過去分詞"},"paid":{"b":"pay","k":"過去形・過去分詞"},"proved":{"b":"prove","k":"過去形"},"proven":{"b":"prove","k":"過去分詞"},"rode":{"b":"ride","k":"過去形"},"ridden":{"b":"ride","k":"過去分詞"},"rang":{"b":"ring","k":"過去形"},"rung":{"b":"ring","k":"過去分詞"},"rose":{"b":"rise","k":"過去形"},"risen":{"b":"rise","k":"過去分詞"},"ran":{"b":"run","k":"過去形"},"said":{"b":"say","k":"過去形・過去分詞"},"saw":{"b":"see","k":"過去形"},"seen":{"b":"see","k":"過去分詞"},"sought":{"b":"seek","k":"過去形・過去分詞"},"sold":{"b":"sell","k":"過去形・過去分詞"},"sent":{"b":"send","k":"過去形・過去分詞"},"sewed":{"b":"sew","k":"過去形"},"sewn":{"b":"sew","k":"過去分詞"},"shook":{"b":"shake","k":"過去形"},"shaken":{"b":"shake","k":"過去分詞"},"shone":{"b":"shine","k":"過去形・過去分詞"},"shot":{"b":"shoot","k":"過去形・過去分詞"},"showed":{"b":"show","k":"過去形"},"shown":{"b":"show","k":"過去分詞"},"shrank":{"b":"shrink","k":"過去形"},"shrunk":{"b":"shrink","k":"過去分詞"},"sang":{"b":"sing","k":"過去形"},"sung":{"b":"sing","k":"過去分詞"},"sank":{"b":"sink","k":"過去形"},"sunk":{"b":"sink","k":"過去分詞"},"sat":{"b":"sit","k":"過去形・過去分詞"},"slept":{"b":"sleep","k":"過去形・過去分詞"},"slid":{"b":"slide","k":"過去形・過去分詞"},"slung":{"b":"sling","k":"過去形・過去分詞"},"smelt":{"b":"smell","k":"過去形・過去分詞"},"sowed":{"b":"sow","k":"過去形"},"sown":{"b":"sow","k":"過去分詞"},"spoke":{"b":"speak","k":"過去形"},"spoken":{"b":"speak","k":"過去分詞"},"sped":{"b":"speed","k":"過去形・過去分詞"},"spelt":{"b":"spell","k":"過去形・過去分詞"},"spent":{"b":"spend","k":"過去形・過去分詞"},"spilt":{"b":"spill","k":"過去形・過去分詞"},"spun":{"b":"spin","k":"過去形・過去分詞"},"spat":{"b":"spit","k":"過去形・過去分詞"},"spoilt":{"b":"spoil","k":"過去形・過去分詞"},"sprang":{"b":"spring","k":"過去形"},"sprung":{"b":"spring","k":"過去分詞"},"stood":{"b":"stand","k":"過去形・過去分詞"},"stole":{"b":"steal","k":"過去形"},"stolen":{"b":"steal","k":"過去分詞"},"stuck":{"b":"stick","k":"過去形・過去分詞"},"stung":{"b":"sting","k":"過去形・過去分詞"},"stank":{"b":"stink","k":"過去形"},"stunk":{"b":"stink","k":"過去分詞"},"strode":{"b":"stride","k":"過去形"},"stridden":{"b":"stride","k":"過去分詞"},"struck":{"b":"strike","k":"過去形・過去分詞"},"strung":{"b":"string","k":"過去形・過去分詞"},"strove":{"b":"strive","k":"過去形"},"striven":{"b":"strive","k":"過去分詞"},"swore":{"b":"swear","k":"過去形"},"sworn":{"b":"swear","k":"過去分詞"},"swept":{"b":"sweep","k":"過去形・過去分詞"},"swelled":{"b":"swell","k":"過去形"},"swollen":{"b":"swell","k":"過去分詞"},"swam":{"b":"swim","k":"過去形"},"swum":{"b":"swim","k":"過去分詞"},"swung":{"b":"swing","k":"過去形・過去分詞"},"took":{"b":"take","k":"過去形"},"taken":{"b":"take","k":"過去分詞"},"taught":{"b":"teach","k":"過去形・過去分詞"},"tore":{"b":"tear","k":"過去形"},"torn":{"b":"tear","k":"過去分詞"},"told":{"b":"tell","k":"過去形・過去分詞"},"thought":{"b":"think","k":"過去形・過去分詞"},"threw":{"b":"throw","k":"過去形"},"thrown":{"b":"throw","k":"過去分詞"},"trod":{"b":"tread","k":"過去形"},"trodden":{"b":"tread","k":"過去分詞"},"understood":{"b":"understand","k":"過去形・過去分詞"},"undertook":{"b":"undertake","k":"過去形"},"undertaken":{"b":"undertake","k":"過去分詞"},"woke":{"b":"wake","k":"過去形"},"woken":{"b":"wake","k":"過去分詞"},"wore":{"b":"wear","k":"過去形"},"worn":{"b":"wear","k":"過去分詞"},"wove":{"b":"weave","k":"過去形"},"woven":{"b":"weave","k":"過去分詞"},"wept":{"b":"weep","k":"過去形・過去分詞"},"won":{"b":"win","k":"過去形・過去分詞"},"wound":{"b":"wind","k":"過去形・過去分詞"},"withdrew":{"b":"withdraw","k":"過去形"},"withdrawn":{"b":"withdraw","k":"過去分詞"},"wrung":{"b":"wring","k":"過去形・過去分詞"},"wrote":{"b":"write","k":"過去形"},"written":{"b":"write","k":"過去分詞"},"overcame":{"b":"overcome","k":"過去形"},"overtook":{"b":"overtake","k":"過去形"},"overtaken":{"b":"overtake","k":"過去分詞"},"undid":{"b":"undo","k":"過去形"},"undone":{"b":"undo","k":"過去分詞"},"men":{"b":"man","k":"複数形"},"women":{"b":"woman","k":"複数形"},"children":{"b":"child","k":"複数形"},"feet":{"b":"foot","k":"複数形"},"teeth":{"b":"tooth","k":"複数形"},"geese":{"b":"goose","k":"複数形"},"mice":{"b":"mouse","k":"複数形"},"lice":{"b":"louse","k":"複数形"},"oxen":{"b":"ox","k":"複数形"},"people":{"b":"person","k":"複数形"},"criteria":{"b":"criterion","k":"複数形"},"phenomena":{"b":"phenomenon","k":"複数形"},"data":{"b":"datum","k":"複数形"},"media":{"b":"medium","k":"複数形"},"analyses":{"b":"analysis","k":"複数形"},"bases":{"b":"basis","k":"複数形"},"crises":{"b":"crisis","k":"複数形"},"theses":{"b":"thesis","k":"複数形"},"hypotheses":{"b":"hypothesis","k":"複数形"},"diagnoses":{"b":"diagnosis","k":"複数形"},"oases":{"b":"oasis","k":"複数形"},"parentheses":{"b":"parenthesis","k":"複数形"},"cacti":{"b":"cactus","k":"複数形"},"fungi":{"b":"fungus","k":"複数形"},"nuclei":{"b":"nucleus","k":"複数形"},"stimuli":{"b":"stimulus","k":"複数形"},"syllabi":{"b":"syllabus","k":"複数形"},"alumni":{"b":"alumnus","k":"複数形"},"radii":{"b":"radius","k":"複数形"},"curricula":{"b":"curriculum","k":"複数形"},"bacteria":{"b":"bacterium","k":"複数形"},"memoranda":{"b":"memorandum","k":"複数形"},"strata":{"b":"stratum","k":"複数形"},"indices":{"b":"index","k":"複数形"},"appendices":{"b":"appendix","k":"複数形"},"matrices":{"b":"matrix","k":"複数形"},"vertices":{"b":"vertex","k":"複数形"},"selves":{"b":"self","k":"複数形"},"knives":{"b":"knife","k":"複数形"},"wives":{"b":"wife","k":"複数形"},"lives":{"b":"life","k":"複数形"},"leaves":{"b":"leaf","k":"複数形"},"loaves":{"b":"loaf","k":"複数形"},"halves":{"b":"half","k":"複数形"},"wolves":{"b":"wolf","k":"複数形"},"shelves":{"b":"shelf","k":"複数形"},"thieves":{"b":"thief","k":"複数形"},"calves":{"b":"calf","k":"複数形"},"elves":{"b":"elf","k":"複数形"},"better":{"b":"good","k":"比較級"},"best":{"b":"good","k":"最上級"},"worse":{"b":"bad","k":"比較級"},"worst":{"b":"bad","k":"最上級"},"more":{"b":"many","k":"比較級"},"most":{"b":"many","k":"最上級"},"less":{"b":"little","k":"比較級"},"least":{"b":"little","k":"最上級"},"further":{"b":"far","k":"比較級"},"furthest":{"b":"far","k":"最上級"},"elder":{"b":"old","k":"比較級"},"eldest":{"b":"old","k":"最上級"}};
+const IRREG_BASE = {"is":{"b":"be","k":"現在形"},"am":{"b":"be","k":"現在形"},"are":{"b":"be","k":"現在形"},"has":{"b":"have","k":"三人称単数現在形"},"does":{"b":"do","k":"三人称単数現在形"},"arose":{"b":"arise","k":"過去形"},"arisen":{"b":"arise","k":"過去分詞"},"awoke":{"b":"awake","k":"過去形"},"awoken":{"b":"awake","k":"過去分詞"},"was":{"b":"be","k":"過去形"},"were":{"b":"be","k":"過去形"},"been":{"b":"be","k":"過去分詞"},"bore":{"b":"bear","k":"過去形"},"borne":{"b":"bear","k":"過去分詞"},"beaten":{"b":"beat","k":"過去分詞"},"became":{"b":"become","k":"過去形"},"began":{"b":"begin","k":"過去形"},"begun":{"b":"begin","k":"過去分詞"},"bent":{"b":"bend","k":"過去形・過去分詞"},"bit":{"b":"bite","k":"過去形"},"bitten":{"b":"bite","k":"過去分詞"},"bled":{"b":"bleed","k":"過去形・過去分詞"},"blew":{"b":"blow","k":"過去形"},"blown":{"b":"blow","k":"過去分詞"},"broke":{"b":"break","k":"過去形"},"broken":{"b":"break","k":"過去分詞"},"bred":{"b":"breed","k":"過去形・過去分詞"},"brought":{"b":"bring","k":"過去形・過去分詞"},"built":{"b":"build","k":"過去形・過去分詞"},"burnt":{"b":"burn","k":"過去形・過去分詞"},"bought":{"b":"buy","k":"過去形・過去分詞"},"caught":{"b":"catch","k":"過去形・過去分詞"},"chose":{"b":"choose","k":"過去形"},"chosen":{"b":"choose","k":"過去分詞"},"clung":{"b":"cling","k":"過去形・過去分詞"},"came":{"b":"come","k":"過去形"},"crept":{"b":"creep","k":"過去形・過去分詞"},"dealt":{"b":"deal","k":"過去形・過去分詞"},"dug":{"b":"dig","k":"過去形・過去分詞"},"did":{"b":"do","k":"過去形"},"done":{"b":"do","k":"過去分詞"},"drew":{"b":"draw","k":"過去形"},"drawn":{"b":"draw","k":"過去分詞"},"dreamt":{"b":"dream","k":"過去形・過去分詞"},"drank":{"b":"drink","k":"過去形"},"drunk":{"b":"drink","k":"過去分詞"},"drove":{"b":"drive","k":"過去形"},"driven":{"b":"drive","k":"過去分詞"},"ate":{"b":"eat","k":"過去形"},"eaten":{"b":"eat","k":"過去分詞"},"fell":{"b":"fall","k":"過去形"},"fallen":{"b":"fall","k":"過去分詞"},"fed":{"b":"feed","k":"過去形・過去分詞"},"felt":{"b":"feel","k":"過去形・過去分詞"},"fought":{"b":"fight","k":"過去形・過去分詞"},"found":{"b":"find","k":"過去形・過去分詞"},"fled":{"b":"flee","k":"過去形・過去分詞"},"flung":{"b":"fling","k":"過去形・過去分詞"},"flew":{"b":"fly","k":"過去形"},"flown":{"b":"fly","k":"過去分詞"},"forbade":{"b":"forbid","k":"過去形"},"forbidden":{"b":"forbid","k":"過去分詞"},"forgot":{"b":"forget","k":"過去形"},"forgotten":{"b":"forget","k":"過去分詞"},"forgave":{"b":"forgive","k":"過去形"},"forgiven":{"b":"forgive","k":"過去分詞"},"froze":{"b":"freeze","k":"過去形"},"frozen":{"b":"freeze","k":"過去分詞"},"got":{"b":"get","k":"過去形"},"gotten":{"b":"get","k":"過去分詞"},"gave":{"b":"give","k":"過去形"},"given":{"b":"give","k":"過去分詞"},"went":{"b":"go","k":"過去形"},"gone":{"b":"go","k":"過去分詞"},"ground":{"b":"grind","k":"過去形・過去分詞"},"grew":{"b":"grow","k":"過去形"},"grown":{"b":"grow","k":"過去分詞"},"hung":{"b":"hang","k":"過去形・過去分詞"},"had":{"b":"have","k":"過去形・過去分詞"},"heard":{"b":"hear","k":"過去形・過去分詞"},"hid":{"b":"hide","k":"過去形"},"hidden":{"b":"hide","k":"過去分詞"},"held":{"b":"hold","k":"過去形・過去分詞"},"kept":{"b":"keep","k":"過去形・過去分詞"},"knelt":{"b":"kneel","k":"過去形・過去分詞"},"knew":{"b":"know","k":"過去形"},"known":{"b":"know","k":"過去分詞"},"laid":{"b":"lay","k":"過去形・過去分詞"},"led":{"b":"lead","k":"過去形・過去分詞"},"leant":{"b":"lean","k":"過去形・過去分詞"},"leapt":{"b":"leap","k":"過去形・過去分詞"},"learnt":{"b":"learn","k":"過去形・過去分詞"},"left":{"b":"leave","k":"過去形・過去分詞"},"lent":{"b":"lend","k":"過去形・過去分詞"},"lay":{"b":"lie","k":"過去形"},"lain":{"b":"lie","k":"過去分詞"},"lit":{"b":"light","k":"過去形・過去分詞"},"lost":{"b":"lose","k":"過去形・過去分詞"},"made":{"b":"make","k":"過去形・過去分詞"},"meant":{"b":"mean","k":"過去形・過去分詞"},"met":{"b":"meet","k":"過去形・過去分詞"},"mistook":{"b":"mistake","k":"過去形"},"mistaken":{"b":"mistake","k":"過去分詞"},"paid":{"b":"pay","k":"過去形・過去分詞"},"proved":{"b":"prove","k":"過去形"},"proven":{"b":"prove","k":"過去分詞"},"rode":{"b":"ride","k":"過去形"},"ridden":{"b":"ride","k":"過去分詞"},"rang":{"b":"ring","k":"過去形"},"rung":{"b":"ring","k":"過去分詞"},"rose":{"b":"rise","k":"過去形"},"risen":{"b":"rise","k":"過去分詞"},"ran":{"b":"run","k":"過去形"},"said":{"b":"say","k":"過去形・過去分詞"},"saw":{"b":"see","k":"過去形"},"seen":{"b":"see","k":"過去分詞"},"sought":{"b":"seek","k":"過去形・過去分詞"},"sold":{"b":"sell","k":"過去形・過去分詞"},"sent":{"b":"send","k":"過去形・過去分詞"},"sewed":{"b":"sew","k":"過去形"},"sewn":{"b":"sew","k":"過去分詞"},"shook":{"b":"shake","k":"過去形"},"shaken":{"b":"shake","k":"過去分詞"},"shone":{"b":"shine","k":"過去形・過去分詞"},"shot":{"b":"shoot","k":"過去形・過去分詞"},"showed":{"b":"show","k":"過去形"},"shown":{"b":"show","k":"過去分詞"},"shrank":{"b":"shrink","k":"過去形"},"shrunk":{"b":"shrink","k":"過去分詞"},"sang":{"b":"sing","k":"過去形"},"sung":{"b":"sing","k":"過去分詞"},"sank":{"b":"sink","k":"過去形"},"sunk":{"b":"sink","k":"過去分詞"},"sat":{"b":"sit","k":"過去形・過去分詞"},"slept":{"b":"sleep","k":"過去形・過去分詞"},"slid":{"b":"slide","k":"過去形・過去分詞"},"slung":{"b":"sling","k":"過去形・過去分詞"},"smelt":{"b":"smell","k":"過去形・過去分詞"},"sowed":{"b":"sow","k":"過去形"},"sown":{"b":"sow","k":"過去分詞"},"spoke":{"b":"speak","k":"過去形"},"spoken":{"b":"speak","k":"過去分詞"},"sped":{"b":"speed","k":"過去形・過去分詞"},"spelt":{"b":"spell","k":"過去形・過去分詞"},"spent":{"b":"spend","k":"過去形・過去分詞"},"spilt":{"b":"spill","k":"過去形・過去分詞"},"spun":{"b":"spin","k":"過去形・過去分詞"},"spat":{"b":"spit","k":"過去形・過去分詞"},"spoilt":{"b":"spoil","k":"過去形・過去分詞"},"sprang":{"b":"spring","k":"過去形"},"sprung":{"b":"spring","k":"過去分詞"},"stood":{"b":"stand","k":"過去形・過去分詞"},"stole":{"b":"steal","k":"過去形"},"stolen":{"b":"steal","k":"過去分詞"},"stuck":{"b":"stick","k":"過去形・過去分詞"},"stung":{"b":"sting","k":"過去形・過去分詞"},"stank":{"b":"stink","k":"過去形"},"stunk":{"b":"stink","k":"過去分詞"},"strode":{"b":"stride","k":"過去形"},"stridden":{"b":"stride","k":"過去分詞"},"struck":{"b":"strike","k":"過去形・過去分詞"},"strung":{"b":"string","k":"過去形・過去分詞"},"strove":{"b":"strive","k":"過去形"},"striven":{"b":"strive","k":"過去分詞"},"swore":{"b":"swear","k":"過去形"},"sworn":{"b":"swear","k":"過去分詞"},"swept":{"b":"sweep","k":"過去形・過去分詞"},"swelled":{"b":"swell","k":"過去形"},"swollen":{"b":"swell","k":"過去分詞"},"swam":{"b":"swim","k":"過去形"},"swum":{"b":"swim","k":"過去分詞"},"swung":{"b":"swing","k":"過去形・過去分詞"},"took":{"b":"take","k":"過去形"},"taken":{"b":"take","k":"過去分詞"},"taught":{"b":"teach","k":"過去形・過去分詞"},"tore":{"b":"tear","k":"過去形"},"torn":{"b":"tear","k":"過去分詞"},"told":{"b":"tell","k":"過去形・過去分詞"},"thought":{"b":"think","k":"過去形・過去分詞"},"threw":{"b":"throw","k":"過去形"},"thrown":{"b":"throw","k":"過去分詞"},"trod":{"b":"tread","k":"過去形"},"trodden":{"b":"tread","k":"過去分詞"},"understood":{"b":"understand","k":"過去形・過去分詞"},"undertook":{"b":"undertake","k":"過去形"},"undertaken":{"b":"undertake","k":"過去分詞"},"woke":{"b":"wake","k":"過去形"},"woken":{"b":"wake","k":"過去分詞"},"wore":{"b":"wear","k":"過去形"},"worn":{"b":"wear","k":"過去分詞"},"wove":{"b":"weave","k":"過去形"},"woven":{"b":"weave","k":"過去分詞"},"wept":{"b":"weep","k":"過去形・過去分詞"},"won":{"b":"win","k":"過去形・過去分詞"},"wound":{"b":"wind","k":"過去形・過去分詞"},"withdrew":{"b":"withdraw","k":"過去形"},"withdrawn":{"b":"withdraw","k":"過去分詞"},"wrung":{"b":"wring","k":"過去形・過去分詞"},"wrote":{"b":"write","k":"過去形"},"written":{"b":"write","k":"過去分詞"},"overcame":{"b":"overcome","k":"過去形"},"overtook":{"b":"overtake","k":"過去形"},"overtaken":{"b":"overtake","k":"過去分詞"},"undid":{"b":"undo","k":"過去形"},"undone":{"b":"undo","k":"過去分詞"},"men":{"b":"man","k":"複数形"},"women":{"b":"woman","k":"複数形"},"children":{"b":"child","k":"複数形"},"feet":{"b":"foot","k":"複数形"},"teeth":{"b":"tooth","k":"複数形"},"geese":{"b":"goose","k":"複数形"},"mice":{"b":"mouse","k":"複数形"},"lice":{"b":"louse","k":"複数形"},"oxen":{"b":"ox","k":"複数形"},"people":{"b":"person","k":"複数形"},"criteria":{"b":"criterion","k":"複数形"},"phenomena":{"b":"phenomenon","k":"複数形"},"data":{"b":"datum","k":"複数形"},"media":{"b":"medium","k":"複数形"},"analyses":{"b":"analysis","k":"複数形"},"bases":{"b":"basis","k":"複数形"},"crises":{"b":"crisis","k":"複数形"},"theses":{"b":"thesis","k":"複数形"},"hypotheses":{"b":"hypothesis","k":"複数形"},"diagnoses":{"b":"diagnosis","k":"複数形"},"oases":{"b":"oasis","k":"複数形"},"parentheses":{"b":"parenthesis","k":"複数形"},"cacti":{"b":"cactus","k":"複数形"},"fungi":{"b":"fungus","k":"複数形"},"nuclei":{"b":"nucleus","k":"複数形"},"stimuli":{"b":"stimulus","k":"複数形"},"syllabi":{"b":"syllabus","k":"複数形"},"alumni":{"b":"alumnus","k":"複数形"},"radii":{"b":"radius","k":"複数形"},"curricula":{"b":"curriculum","k":"複数形"},"bacteria":{"b":"bacterium","k":"複数形"},"memoranda":{"b":"memorandum","k":"複数形"},"strata":{"b":"stratum","k":"複数形"},"indices":{"b":"index","k":"複数形"},"appendices":{"b":"appendix","k":"複数形"},"matrices":{"b":"matrix","k":"複数形"},"vertices":{"b":"vertex","k":"複数形"},"selves":{"b":"self","k":"複数形"},"knives":{"b":"knife","k":"複数形"},"wives":{"b":"wife","k":"複数形"},"lives":{"b":"life","k":"複数形"},"leaves":{"b":"leaf","k":"複数形"},"loaves":{"b":"loaf","k":"複数形"},"halves":{"b":"half","k":"複数形"},"wolves":{"b":"wolf","k":"複数形"},"shelves":{"b":"shelf","k":"複数形"},"thieves":{"b":"thief","k":"複数形"},"calves":{"b":"calf","k":"複数形"},"elves":{"b":"elf","k":"複数形"},"better":{"b":"good","k":"比較級"},"best":{"b":"good","k":"最上級"},"worse":{"b":"bad","k":"比較級"},"worst":{"b":"bad","k":"最上級"},"more":{"b":"many","k":"比較級"},"most":{"b":"many","k":"最上級"},"less":{"b":"little","k":"比較級"},"least":{"b":"little","k":"最上級"},"further":{"b":"far","k":"比較級"},"furthest":{"b":"far","k":"最上級"},"elder":{"b":"old","k":"比較級"},"eldest":{"b":"old","k":"最上級"}};
 /* 変化形の原形を探す（CEFR-J・品詞別辞書にある形） */
 function lemmaBase(word){
   const l = (word||'').toLowerCase().trim(); if (!l || /\s/.test(l)) return '';
@@ -2108,16 +2116,50 @@ function _posMeaningLocal(word){
     .sort((a,b)=>{const ai=ORD.indexOf(a[0]),bi=ORD.indexOf(b[0]);return (ai<0?9:ai)-(bi<0?9:bi);});
   return list.map(([p,jp])=>{const l=posToJA(p);return l?`${l}: ${jp}`:jp;}).join('\n');
 }
+/* 辞書に見出しがない変化形の訳: 原形の訳＋「（go の過去形）」
+   ・不規則変化（went・children）・規則変化（looked）・熟語の最初の語の変化（looked after → look after） */
+function _formKind(w, base){
+  if (IRREG_BASE[w]) return IRREG_BASE[w].k;
+  if (/ing$/.test(w)) return '-ing形';
+  if (/(ed|ied)$/.test(w)) return '過去形・過去分詞';
+  if (/est$/.test(w) && !/est$/.test(base)) return '最上級';
+  if (/er$/.test(w) && !/er$/.test(base)) return '比較級';
+  if (/s$/.test(w)) return '変化形';
+  return '変化形';
+}
+function _formMeaningLocal(word){
+  const E = window.EJDICT_POS; if (!E) return '';
+  const w = String(word||'').trim(), l = w.toLowerCase();
+  const usable = x => x && Object.values(x).some(v => v && hasJP(v));
+  if (!w || usable(E[w]) || usable(E[l])) return '';
+  const m = l.match(/^(\S+)(\s+.+)?$/); if (!m) return '';
+  const head = m[1], rest = m[2] || '';
+  const base0 = (IRREG_BASE[head] && IRREG_BASE[head].b) || lemmaBase(head);
+  if (!base0) return '';
+  const base = base0 + rest;
+  if (!usable(E[base])) return '';
+  const kind = _formKind(head, base0);
+  let lines;
+  if (!rest && kind !== '変化形') {   // 該当する品詞だけ（went → 動詞、children → 名詞、taller → 形容詞）
+    const want = /複数/.test(kind) ? ['noun'] : /級/.test(kind) ? ['adjective','adverb'] : ['verb','auxiliary verb'];
+    lines = Object.entries(E[base]).filter(([p,jp]) => want.includes(p) && jp && hasJP(jp)).map(([p,jp]) => `${posToJA(p)}: ${jp}`).join('\n');
+  }
+  if (!lines) lines = _posMeaningLocal(base);
+  return lines ? `${lines}\n（${base} の${kind}）` : '';
+}
+const REPAIR_V = 3;   // 訳の見直しの版（辞書を足した時に上げると、登録済みの語をもう一度確認する）
 function repairMeaning(c){
-  if (!c || c.mchk || c.userMeaning || !c.word) return false;
+  if (!c || (c.mchk||0) >= REPAIR_V || c.userMeaning || !c.word) return false;
   const old = String(c.meaning||'').trim();
-  if (/(名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞|助動詞)\s*[:：]/.test(old)) { c.mchk = 1; return false; }
+  if (/(名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞|助動詞)\s*[:：]/.test(old)) { c.mchk = REPAIR_V; return false; }
   if (!window.EJDICT_POS) return false;            // 辞書の読み込み待ち（次の機会に再確認）
-  c.mchk = 1;
-  const nw = _posMeaningLocal(c.word); if (!nw || !/[:：]/.test(nw)) return false;
+  c.mchk = REPAIR_V;
+  const direct = _posMeaningLocal(c.word);
+  const nw = direct || _formMeaningLocal(c.word); if (!nw || !/[:：]/.test(nw)) return false;
   const flat = nw.replace(/[\s（）()「」]/g,'');
   const pieces = old.split(/[、,，・;；\/\s（）()「」]+/).map(x=>x.trim()).filter(Boolean);
-  const ok = !old || /訳語なし|翻訳エラー/.test(old) || /^[ァ-ヿー・\s]+$/.test(old) ||
+  // 変化形（辞書に見出しなし）の古い訳はオンライン翻訳のものなので置き換える
+  const ok = !direct || !old || /訳語なし|翻訳エラー/.test(old) || /^[ァ-ヿー・\s]+$/.test(old) ||
              (pieces.length && pieces.every(x=>flat.includes(x)));
   if (!ok) return false;
   c.meaning = nw;
@@ -2127,7 +2169,7 @@ let _repairRunning = false;
 async function repairOldMeanings(){
   if (_repairRunning) return; _repairRunning = true;
   try {
-    const targets = CARDS.filter(c=>c.section==='My Words' && !c.mchk && !c.userMeaning);
+    const targets = CARDS.filter(c=>c.section==='My Words' && (c.mchk||0) < REPAIR_V && !c.userMeaning);
     if (!targets.length) return;
     await loadEJPOS();
     const fixed = targets.filter(c=>repairMeaning(c));
@@ -2151,16 +2193,10 @@ function renderMeaningOnly(){
 /* 全品詞まとめて表示用文字列を生成 */
 async function autoTranslateAllPOS(word) {
   try {
-    // 辞書の見出しにない不規則変化（went・children など）は原形の意味＋「○○の過去形」
-    const ir = IRREG_BASE[(word||'').toLowerCase().trim()];
-    if (ir) {
-      await loadEJPOS(); const E = window.EJDICT_POS || {};
-      if (!E[word] && !E[word.toLowerCase()] && E[ir.b]) {
-        const want = /複数/.test(ir.k) ? ['noun'] : /級/.test(ir.k) ? ['adjective','adverb'] : ['verb','auxiliary verb'];
-        const lines = Object.entries(E[ir.b]).filter(([p,jp]) => want.includes(p) && jp && hasJP(jp)).map(([p,jp]) => `${posToJA(p)}: ${jp}`);
-        if (lines.length) return lines.join('\n') + `\n（${ir.b} の${ir.k}）`;
-      }
-    }
+    // 辞書の見出しにない変化形（went・children・looked after など）は原形の意味＋「（go の過去形）」
+    await loadEJPOS();
+    const fm = _formMeaningLocal(word);
+    if (fm) return fm;
     const list = await collectAllPOS(word);
     if (!list.length) return '(訳語なし)';
     const lines = list.map(p => {
