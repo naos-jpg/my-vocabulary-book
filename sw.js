@@ -2,7 +2,7 @@
 //  ・APP_CACHE … index.html など（アプリを直した時はこの番号を上げる）
 //  ・DICT_CACHE … 辞書（約46MB）。辞書ファイルを直した時だけこの番号を上げる
 //    → アプリを更新しても、辞書はダウンロードし直さない
-const APP_CACHE  = 'my-tango-app-v15';
+const APP_CACHE  = 'my-tango-app-v16';
 const DICT_CACHE = 'my-tango-dict-v1';
 const APP_FILES  = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './ejdict_fix.js'];
 // ejdict_fix.js（訂正辞書）はアプリ本体と一緒に更新する（訂正を足したら APP_CACHE の番号を上げる）

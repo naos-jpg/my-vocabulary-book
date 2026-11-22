@@ -997,10 +997,15 @@ function loadEJPOS()    { return Promise.all([loadDict('ejdict_pos.js'), loadDic
     const E = window.EJDICT_POS, jp = /[぀-ヿ一-鿿]/;
     // 補完辞書（book・dog・Monday など、品詞別辞書から抜けていた約1,500語）は、元の辞書に無い語だけ足す
     for (const [w,v] of Object.entries(window.EJDICT_POS_ADD || {})) { const e = E[w]; if (!e || !Object.values(e).some(x => x && jp.test(x))) E[w] = v; }
-    // 訂正辞書（品詞の誤り・不適切な訳・抜けていた品詞を直した約1,200語）は置き換える。品詞の並びは訂正辞書の順（よく使う意味が先）
+    // 訂正辞書（品詞の誤り・不適切な訳・抜けていた品詞・主な意味の順を直した約5,600語）は置き換える。品詞の並びは訂正辞書の順（よく使う意味が先）
+    // _posOld … 直す前の訳（登録済みカードがこの訳のままなら新しい訳に置き換える）。v18の訂正から更に直した語は、v18の訳も「古い訳」として扱う
     window._posOld = {}; window._posKeep = new Set();
+    const PREV = window.EJDICT_POS_FIX_PREV || {};
     for (const [w,v] of Object.entries(window.EJDICT_POS_FIX || {})) {
-      if (E[w]) window._posOld[w] = _fmtPOS(E[w], false);
+      const olds = [];
+      if (E[w]) olds.push(_fmtPOS(E[w], false));
+      if (PREV[w]) olds.push(_fmtPOS(PREV[w], true));
+      if (olds.length) window._posOld[w] = olds;
       if (v) { E[w] = v; window._posKeep.add(w); } else delete E[w];
     }
     for (const [w,v] of Object.entries(POS_FIX)) E[w] = Object.assign({}, E[w]||{}, v); } }); }
@@ -2164,7 +2169,7 @@ function _formMeaningLocal(word){
   if (!lines) lines = _posMeaningLocal(base);
   return lines ? `${lines}\n（${base} の${kind}）` : '';
 }
-const REPAIR_V = 4;   // 訳の見直しの版（辞書を足した時に上げると、登録済みの語をもう一度確認する）
+const REPAIR_V = 5;   // 訳の見直しの版（辞書を足した時に上げると、登録済みの語をもう一度確認する）
 function repairMeaning(c){
   if (!c || (c.mchk||0) >= REPAIR_V || c.userMeaning || !c.word) return false;
   const old = String(c.meaning||'').trim();
@@ -2175,7 +2180,8 @@ function repairMeaning(c){
     const norm = t => String(t||'').replace(/ \/ (?=名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞|助動詞|間投詞|冠詞)/g,'\n').replace(/\s+/g,'');
     c.mchk = REPAIR_V;
     const nw = _posMeaningLocal(c.word);
-    if (nw && norm(old) === norm(oldDict) && norm(old) !== norm(nw)) { c.meaning = nw; return true; }
+    const olds = [].concat(oldDict);
+    if (nw && olds.some(o => norm(old) === norm(o)) && norm(old) !== norm(nw)) { c.meaning = nw; return true; }
     return false;
   }
   if (/(名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞|助動詞|間投詞|冠詞)\s*[:：]/.test(old)) { c.mchk = REPAIR_V; return false; }
