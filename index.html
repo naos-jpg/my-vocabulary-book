@@ -15,7 +15,7 @@
 <!-- CEFR-J Wordlist -->
 <script src="cefr_j.js"></script>
 <!-- Tesseract.js (4) OCR in browser -->
-<script src="https://unpkg.com/tesseract.js@v4/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.4/dist/tesseract.min.js"></script>
 <style>
 :root{
   --dark:0; /* 0=light, 1=dark */
@@ -3673,7 +3673,35 @@ function h(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 /* ── OCR機能 ────────────────────────────────────────── */
 let _cameraStream = null;
 
+/* OCRエンジン（Tesseract）を1つ作って使い回す。
+   ・カメラ／画像ボタンを押した時点で準備を始める（写真を選んでいる間に読み込みが終わる）
+   ・2回目からは準備済みのエンジンですぐ読み取る */
+let _ocrWorker = null, _ocrLog = null;
+function warmOCR(){
+  if (_ocrWorker || typeof Tesseract === 'undefined' || !Tesseract.createWorker) return _ocrWorker;
+  _ocrWorker = (async () => {
+    const w = await Tesseract.createWorker({ logger: m => { if (_ocrLog) _ocrLog(m); } });
+    await w.loadLanguage('eng');
+    await w.initialize('eng');
+    return w;
+  })().catch(e => { console.warn('OCR準備エラー', e); _ocrWorker = null; return null; });
+  return _ocrWorker;
+}
+async function ocrRecognize(blob, onLog){
+  _ocrLog = onLog;
+  try {
+    const w = await warmOCR();
+    if (w) return await w.recognize(blob);
+  } catch(e) {
+    console.warn('OCR再試行', e);
+    try { const w = await _ocrWorker; if (w) await w.terminate(); } catch {}
+    _ocrWorker = null;
+  } finally { _ocrLog = null; }
+  return Tesseract.recognize(blob, 'eng', { logger: onLog });   // 予備（使い回しに失敗した時）
+}
+
 function openCamera() {
+  warmOCR();
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if (isMobile) {
     // モバイル: capture属性でネイティブカメラ起動
@@ -3687,6 +3715,7 @@ function openCamera() {
 }
 
 function openGallery() {
+  warmOCR();
   const inp = document.getElementById('cameraInputMobile');
   inp.removeAttribute('capture');
   inp.click();
@@ -3769,13 +3798,12 @@ async function handleImageFile(input) {
     if (fill) fill.style.width = '20%';
     if (txt)  txt.textContent = '🔍 文字を読み取り中…';
 
-    const result = await Tesseract.recognize(processedBlob, 'eng', {
-      logger: m => {
-        if (m.status === 'recognizing text') {
-          const pct = 20 + Math.round(m.progress * 75);
-          if (fill) fill.style.width = pct + '%';
-          if (txt)  txt.textContent = '🔍 読み取り中… ' + pct + '%';
-        }
+    if (!_ocrWorker && txt) txt.textContent = '⏳ 読み取りの準備中…（初回は少し時間がかかります）';
+    const result = await ocrRecognize(processedBlob, m => {
+      if (m.status === 'recognizing text') {
+        const pct = 20 + Math.round(m.progress * 75);
+        if (fill) fill.style.width = pct + '%';
+        if (txt)  txt.textContent = '🔍 読み取り中… ' + pct + '%';
       }
     });
 
@@ -3832,8 +3860,9 @@ async function handleImageFile(input) {
 }
 
 /* ── 画像前処理（OCR精度向上）──
-   グレースケール化 → コントラスト強調 → 二値化
-   これにより文字と背景の境界が明確になりTesseractの精度が上がる */
+   グレースケール化 → 周囲の明るさと比べる二値化（影・明るさのむらに強い）
+   ・決まった明るさ（以前は160）で白黒に分けると、影の部分が真っ黒に、明るい部分の薄い文字が消える
+   ・各点を「周り（画像幅の約1/40の範囲）の平均」と比べて、少し暗ければ文字とみなす */
 function preprocessImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -3841,55 +3870,38 @@ function preprocessImage(file) {
     img.onload = () => {
       URL.revokeObjectURL(url);
       const canvas = document.createElement('canvas');
-
-      // 最低解像度を確保（小さすぎると精度が落ちる）
-      const MIN_W = 1200;
+      // 最低解像度を確保（小さすぎると精度が落ちる）／大きすぎると遅く、スマホのメモリも使うので上限 2400px
+      const MIN_W = 1200, MAX_W = 2400;
       let w = img.width, h = img.height;
-      if (w < MIN_W) {
-        const scale = MIN_W / w;
-        w = Math.round(w * scale);
-        h = Math.round(h * scale);
-      }
-      // 最大サイズ制限（大きすぎると遅い）
-      const MAX_W = 3000;
-      if (w > MAX_W) {
-        const scale = MAX_W / w;
-        w = Math.round(w * scale);
-        h = Math.round(h * scale);
-      }
-
-      canvas.width  = w;
-      canvas.height = h;
+      if (w < MIN_W) { const sc = MIN_W / w; w = Math.round(w * sc); h = Math.round(h * sc); }
+      if (w > MAX_W) { const sc = MAX_W / w; w = Math.round(w * sc); h = Math.round(h * sc); }
+      canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
-
-      // 白背景で描画
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0, w, h);
-
-      // ピクセル処理: グレースケール → コントラスト強調 → 二値化
       const imgData = ctx.getImageData(0, 0, w, h);
-      const d = imgData.data;
-      for (let i = 0; i < d.length; i += 4) {
-        // グレースケール（人間の目に合わせた重み）
-        let gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-
-        // コントラスト強調（S字カーブ）
-        gray = gray / 255;
-        gray = gray < 0.5
-          ? 2 * gray * gray
-          : 1 - Math.pow(-2 * gray + 2, 2) / 2;
-        gray = Math.round(gray * 255);
-
-        // 二値化（閾値: 160）
-        const bin = gray < 160 ? 0 : 255;
-
-        d[i] = d[i+1] = d[i+2] = bin;
-        d[i+3] = 255;
+      const d = imgData.data, n = w * h;
+      // グレースケール
+      const g = new Uint8Array(n);
+      for (let i = 0, j = 0; j < n; i += 4, j++) g[j] = (0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]) | 0;
+      // 積分画像（周りの平均を速く求める）
+      const W1 = w + 1, I = new Uint32Array(W1 * (h + 1));
+      for (let y = 0; y < h; y++) {
+        let row = 0;
+        for (let x = 0; x < w; x++) { row += g[y * w + x]; I[(y + 1) * W1 + x + 1] = I[y * W1 + x + 1] + row; }
+      }
+      const r = Math.max(15, Math.round(w / 40));
+      for (let y = 0; y < h; y++) {
+        const y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1);
+        for (let x = 0; x < w; x++) {
+          const x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1);
+          const sum = I[y1 * W1 + x1] - I[y0 * W1 + x1] - I[y1 * W1 + x0] + I[y0 * W1 + x0];
+          const mean = sum / ((x1 - x0) * (y1 - y0));
+          const v = g[y * w + x] < mean * 0.85 ? 0 : 255;
+          const k = (y * w + x) * 4; d[k] = d[k+1] = d[k+2] = v; d[k+3] = 255;
+        }
       }
       ctx.putImageData(imgData, 0, 0);
-
-      // Blobとして返す
       canvas.toBlob(blob => {
         if (blob) resolve(blob);
         else reject(new Error('Canvas toBlob failed'));
