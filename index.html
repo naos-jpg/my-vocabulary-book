@@ -992,12 +992,26 @@ const POS_FIX = {
   was:  { verb: '〜だった、〜であった、（〜に）いた、あった（be の過去形）' },
   were: { verb: '〜だった、〜であった、（〜に）いた、あった（be の過去形）' },
 };
-function loadEJPOS()    { return Promise.all([loadDict('ejdict_pos.js'), loadDict('ejdict_pos_add.js')]).then(()=>{
+function loadEJPOS()    { return Promise.all([loadDict('ejdict_pos.js'), loadDict('ejdict_pos_add.js'), loadDict('ejdict_fix.js').catch(()=>{})]).then(()=>{
   if (window.EJDICT_POS && !window._posFixed) { window._posFixed = true;
     const E = window.EJDICT_POS, jp = /[぀-ヿ一-鿿]/;
     // 補完辞書（book・dog・Monday など、品詞別辞書から抜けていた約1,500語）は、元の辞書に無い語だけ足す
     for (const [w,v] of Object.entries(window.EJDICT_POS_ADD || {})) { const e = E[w]; if (!e || !Object.values(e).some(x => x && jp.test(x))) E[w] = v; }
+    // 訂正辞書（品詞の誤り・不適切な訳・抜けていた品詞を直した約1,200語）は置き換える。品詞の並びは訂正辞書の順（よく使う意味が先）
+    window._posOld = {}; window._posKeep = new Set();
+    for (const [w,v] of Object.entries(window.EJDICT_POS_FIX || {})) {
+      if (E[w]) window._posOld[w] = _fmtPOS(E[w], false);
+      if (v) { E[w] = v; window._posKeep.add(w); } else delete E[w];
+    }
     for (const [w,v] of Object.entries(POS_FIX)) E[w] = Object.assign({}, E[w]||{}, v); } }); }
+/* 品詞別の訳を「動詞: …⏎名詞: …」にする（keep=true なら辞書の並びのまま） */
+function _fmtPOS(d, keep){
+  const ORD = ['verb','auxiliary verb','noun','adjective','adverb','preposition','conjunction','pronoun','article','interjection'];
+  let list = Object.entries(d||{}).filter(([,jp])=>jp && /[぀-ヿ一-鿿]/.test(jp));
+  if (!keep) list = list.sort((a,b)=>{const ai=ORD.indexOf(a[0]),bi=ORD.indexOf(b[0]);return (ai<0?9:ai)-(bi<0?9:bi);});
+  return list.map(([p,jp])=>{const l=posToJA(p);return l?`${l}: ${jp}`:jp;}).join('\n');
+}
+function _posKept(word){ const K = window._posKeep; return !!(K && (K.has(word) || K.has(String(word).toLowerCase()))); }
 function loadEJSupp()   { return loadDict('ejdict_supp.js'); }
 function loadJAENDict() { return loadDict('jaen.js'); }
 function loadEXDict()   { return loadDict('exdict.js'); }
@@ -1640,12 +1654,17 @@ function matchSection(c){
 /* CEFR推定（ejdictの単語番号を使って推定） */
 const CEFR_L = ['A1','A2','B1','B2','C1','C2'];
 const CEFR_STOP = new Set("to a an the of up off on in out for with at by from into about over down away back one oneself one's someone something somebody sb sth and or as".split(' '));
+// CEFR-J Wordlist Ver1.6（CEFR-J_Wordlist_Ver1_6_Allのみ.xlsx）に合わせる訂正
+const CEFR_FIX = {"able":"B1","accommodation":"B2","across":"A2","active":"B1","actress":"B1","adult":"A2","advertise":"B1","affect":"B1","afterwards":"B1","air":"A2","airline":"B1","aluminium":"B2","amazing":"B1","amount":"B1","analyse":"B1","apartment":"A2","apologise":"A2","architect":"B1","area":"A2","army":"B1","arrange":"B1","arrangement":"B1","artist":"B1","attend":"B1","authorise":"B2","available":"B1","backwards":"B2","ban":"B2","beat":"B1","beer":"A2","beginning":"A2","behave":"B1","behaviour":"A2","benefit":"B1","bill":"A2","billion":"B2","bin":"B1","biology":"B1","blog":"B1","blonde":"A2","boot":"B1","bored":"A2","buddy":"B1","campaign":"B2","candidate":"B2","capital":"A2","carpet":"B1","carrot":"A2","catalogue":"B2","ceiling":"B2","celebrity":"B1","cent":"A2","centre":"A2","characterise":"B1","charity":"B1","chart":"A2","cheap":"A2","cheat":"B2","chemistry":"B1","chip":"B2","civilization":"B1","classical":"B1","client":"B2","climate":"B1","clothing":"B2","colleague":"B2","colourful":"A2","comedy":"B1","comment":"B1","community":"B2","company":"A2","compete":"B1","complete":"A2","completely":"B1","conference":"B2","connect":"B1","contain":"B1","cooking":"A2","copper":"B2","cost":"A2","costume":"B2","cottage":"B2","counselling":"B1","country":"A2","criminal":"B1","criticise":"A2","curly":"B1","customer":"A2","cycle":"B1","daily":"A2","dancer":"A2","dangerous":"A2","decade":"B2","decide":"A2","decision":"B1","decorate":"B2","deer":"B2","defence":"B1","definitely":"B1","department":"B1","designer":"B1","desktop":"B2","detail":"A2","detective":"B1","determined":"B2","device":"B1","dialogue":"B1","die":"A2","diet":"A2","digital":"B1","disaster":"B1","discovery":"B1","disease":"B1","disc":"B1","distance":"B1","divorced":"B1","document":"B1","donate":"B2","downstairs":"A2","during":"A2","east":"A2","educated":"B2","effectively":"B2","electrical":"B1","electricity":"B1","electronic":"B1","elephant":"A2","emphasise":"B1","employ":"B2","employee":"B2","employer":"B2","endeavour":"B2","energy":"B2","engine":"B1","enough":"A2","enrol":"B2","environment":"B2","equipment":"B1","euro":"A2","even":"A2","ever":"A2","exact":"B1","exam":"A2","expected":"B2","expedition":"B2","experiment":"B1","explain":"A2","explode":"B2","export":"B2","extra":"A2","extreme":"B1","fall":"A2","fantastic":"A2","far":"A2","farming":"B1","favour":"A2","favourable":"B1","few":"A2","fibre":"B2","fifth":"B1","fighting":"B2","film":"A2","final":"A2","finger":"B1","firstly":"B2","fix":"A2","fixed":"B2","flavour":"B1","flight":"A2","flu":"B1","follow":"A2","foot":"B1","formal":"B1","friendly":"B2","furor":"B2","gap":"B1","general":"B1","geography":"B1","goat":"B2","god":"B2","grain":"B2","guide":"B1","gym":"B1","harbour":"B1","hate":"A2","height":"B1","helicopter":"B2","hey":"A2","hint":"B2","honour":"A2","horn":"B1","huge":"B1","humour":"B1","hundred":"A2","idiot":"B2","ignorant":"B2","illness":"B1","immediately":"B1","immigrant":"B2","import":"B2","include":"A2","including":"B1","incredible":"B1","independent":"B1","individual":"B1","industry":"B1","infant":"B2","informal":"B2","injured":"B2","injury":"B1","ink":"B1","inquire":"B2","enquiry":"B1","install":"B1","instruction":"B1","instructor":"B1","interest":"A2","introduction":"B1","investigate":"B2","invitation":"B1","involve":"B1","jail":"B1","jazz":"B1","jeopardise":"B2","jewellery":"A1","journalist":"B1","journey":"A2","judgement":"B1","keen":"B2","kilometre":"A2","lab":"B1","label":"B2","labour":"A2","land":"A2","laptop":"B2","last":"A2","laughter":"B1","learning":"B2","lecture":"B1","licence":"A2","lie":"A2","lift":"B1","link":"B1","listener":"B2","lorry":"B1","lose":"A2","loud":"B1","main":"B1","market":"A2","marketing":"B2","married":"A2","mask":"B2","maths":"A1","mathematics":"B1","meaning":"A2","media":"B2","medieval":"B2","member":"A2","menu":"A2","metre":"A2","midnight":"A2","mile":"B1","mill":"B2","million":"A2","minimise":"B1","mistake":"A2","mixture":"B2","model":"A2","modern":"A2","motorcycle":"B1","movement":"B1","museum":"A2","narrow":"B1","necessarily":"B2","neighbouring":"B2","neither":"B2","network":"B1","next":"A2","nobody":"A2","none":"B1","noon":"A2","normally":"B1","north":"A2","nowhere":"B1","nut":"B2","ocean":"B1","odd":"B2","onion":"A2","online":"A2","onto":"B1","opposite":"A2","option":"B1","ordinary":"B1","organisation":"B1","organised":"A2","organiser":"B2","originally":"B2","pad":"B2","pain":"B1","parking":"B1","part":"A2","particular":"B2","passport":"B1","pasta":"A2","pattern":"B1","payment":"B2","penny":"B1","pepper":"A2","per":"B1","percent":"B1","percentage":"B2","perfect":"A2","pessimistic":"B2","phoenix":"B1","photograph":"A2","phrase":"B1","physics":"B1","pirate":"B2","planning":"B2","plant":"A2","platform":"B1","plot":"B2","plug":"B1","police":"A2","policeman":"A2","pond":"B1","popular":"A2","possession":"B1","possibility":"B1","possible":"A2","pound":"B1","president":"B1","previously":"B2","primary":"B2","prison":"B1","prize":"B1","professor":"B1","profile":"B2","profit":"B2","program":"A1","progress":"B1","project":"B2","protect":"B1","pub":"B1","punch":"B2","qualification":"B2","quantity":"B1","quick":"A2","quite":"A2","quotation":"B2","quote":"B2","race":"B1","railway":"B1","react":"B1","reaction":"B2","realization":"B2","reception":"B1","recipe":"B2","recognise":"B1","recommend":"B1","recommendation":"B2","recording":"B1","reduce":"B1","reference":"B2","refuse":"B1","region":"B1","related":"B2","relationship":"B1","relax":"A2","remove":"B1","report":"A2","researcher":"B1","rest":"B1","return":"A2","road":"A2","rock":"A2","routine":"B1","rubbish":"B1","rumour":"A2","sail":"B2","salary":"B2","salt":"A2","scared":"B1","scary":"B1","score":"B1","season":"B1","secondary":"B2","secondly":"B2","send":"A2","sensible":"B2","series":"B1","serious":"B1","servant":"B2","service":"B1","sexual":"B2","sheet":"B1","skin":"B1","skip":"B2","slam":"B2","slap":"B2","somebody":"A2","sometimes":"B1","sort":"B1","sound":"A2","south":"A2","space":"A2","specialise":"B1","specifically":"B2","spelling":"B1","spider":"B1","strawberry":"B1","stress":"B1","stupid":"B1","style":"A2","suddenly":"B1","suppose":"B1","sweater":"A2","swing":"B2","tablet":"B1","tail":"B2","taste":"B1","teaching":"B1","technical":"B2","teenager":"A2","tent":"B1","term":"B1","text":"A2","theme":"B2","third":"A2","thirsty":"A2","thousand":"A2","throat":"B2","title":"A2","total":"B1","tourism":"B1","tourist":"A2","traffic":"A2","trailer":"B2","translation":"B2","transport":"B1","tumour":"B2","twice":"A2","twin":"B1","typical":"B1","underground":"B2","understand":"A2","understanding":"B2","underwear":"B2","united":"B2","university":"A2","upstairs":"A2","user":"B2","utilise":"B2","van":"B1","variety":"B1","version":"B2","viewer":"B2","vigour":"B2","village":"A2","virus":"B1","visitor":"A2","website":"A2","west":"A2","western":"B2","wine":"A2","without":"A2","working":"B1","writing":"A2","yeah":"A2"};
 let _cefrExpanded = false;
 function estimateCEFR(word) {
   if (!word) return 'B1';
   // CEFR-J の「color/colour」のような見出しを1語ずつ引けるようにする
   if (!_cefrExpanded && window.CEFR_J) { _cefrExpanded = true; const CJ = window.CEFR_J;
-    for (const k of Object.keys(CJ)) if (k.includes('/')) for (const v of k.split('/')) { const t = v.trim().replace(/\.$/,''); if (t && !CJ[t]) CJ[t] = CJ[k]; } }
+    for (const k of Object.keys(CJ)) if (k.includes('/')) for (const v of k.split('/')) { const t = v.trim().replace(/\.$/,''); if (t && !CJ[t]) CJ[t] = CJ[k]; }
+    // 元の CEFR-J Wordlist Ver1.6 とずれていた約470語を元のレベルに戻す（品詞が複数ある語は一番易しいレベル）
+    const low = {}; for (const k of Object.keys(CJ)) (low[k.toLowerCase()] = low[k.toLowerCase()] || []).push(k);
+    for (const [w, lv] of Object.entries(CEFR_FIX)) { for (const k of (low[w] || [w])) CJ[k] = lv; } }
   const C = window.CEFR_J || {}, w = String(word).trim(), l = w.toLowerCase();
   if (C[w]) return C[w];
   if (C[l]) return C[l];
@@ -1933,6 +1952,7 @@ function posToJA(pos) {
   if (p.includes('conjunction')) return '接続詞';
   if (p.includes('pronoun'))     return '代名詞';
   if (p.includes('interjection')) return '間投詞';
+  if (p.includes('article'))     return '冠詞';
   return '';
 }
 
@@ -1983,7 +2003,7 @@ async function collectAllPOS(word) {
     for (const [enPos, jp] of Object.entries(posFirst)) {
       if (jp && hasJP(jp)) r0.push({ pos: enPos, jp });
     }
-    r0.sort((a,b) => {
+    if (!_posKept(word)) r0.sort((a,b) => {
       const ai = POS_ORDER.indexOf(a.pos), bi = POS_ORDER.indexOf(b.pos);
       return (ai<0?9:ai) - (bi<0?9:bi);
     });
@@ -2011,7 +2031,7 @@ async function collectAllPOS(word) {
     for (const [enPos, jp] of Object.entries(posData)) {
       if (jp && hasJP(jp)) results.push({ pos: enPos, jp });
     }
-    results.sort((a,b) => {
+    if (!_posKept(word)) results.sort((a,b) => {
       const ai = POS_ORDER.indexOf(a.pos);
       const bi = POS_ORDER.indexOf(b.pos);
       return (ai<0?9:ai) - (bi<0?9:bi);
@@ -2111,10 +2131,7 @@ async function suggestSpelling(word){
 function _posMeaningLocal(word){
   const E = window.EJDICT_POS; if (!E) return '';
   const d = E[word] || E[word.toLowerCase()]; if (!d) return '';
-  const ORD = ['verb','noun','adjective','adverb','preposition','conjunction','pronoun'];
-  const list = Object.entries(d).filter(([,jp])=>jp&&hasJP(jp))
-    .sort((a,b)=>{const ai=ORD.indexOf(a[0]),bi=ORD.indexOf(b[0]);return (ai<0?9:ai)-(bi<0?9:bi);});
-  return list.map(([p,jp])=>{const l=posToJA(p);return l?`${l}: ${jp}`:jp;}).join('\n');
+  return _fmtPOS(d, _posKept(word));
 }
 /* 辞書に見出しがない変化形の訳: 原形の訳＋「（go の過去形）」
    ・不規則変化（went・children）・規則変化（looked）・熟語の最初の語の変化（looked after → look after） */
@@ -2147,12 +2164,21 @@ function _formMeaningLocal(word){
   if (!lines) lines = _posMeaningLocal(base);
   return lines ? `${lines}\n（${base} の${kind}）` : '';
 }
-const REPAIR_V = 3;   // 訳の見直しの版（辞書を足した時に上げると、登録済みの語をもう一度確認する）
+const REPAIR_V = 4;   // 訳の見直しの版（辞書を足した時に上げると、登録済みの語をもう一度確認する）
 function repairMeaning(c){
   if (!c || (c.mchk||0) >= REPAIR_V || c.userMeaning || !c.word) return false;
   const old = String(c.meaning||'').trim();
-  if (/(名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞|助動詞)\s*[:：]/.test(old)) { c.mchk = REPAIR_V; return false; }
   if (!window.EJDICT_POS) return false;            // 辞書の読み込み待ち（次の機会に再確認）
+  // 訂正辞書で直した語: 古い辞書の訳のまま（自分で書き換えていない）なら新しい訳に置き換える
+  const PO = window._posOld || {}, oldDict = PO[c.word] ?? PO[c.word.toLowerCase()];
+  if (oldDict !== undefined && _posKept(c.word)) {
+    const norm = t => String(t||'').replace(/ \/ (?=名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞|助動詞|間投詞|冠詞)/g,'\n').replace(/\s+/g,'');
+    c.mchk = REPAIR_V;
+    const nw = _posMeaningLocal(c.word);
+    if (nw && norm(old) === norm(oldDict) && norm(old) !== norm(nw)) { c.meaning = nw; return true; }
+    return false;
+  }
+  if (/(名詞|動詞|形容詞|副詞|前置詞|接続詞|代名詞|助動詞|間投詞|冠詞)\s*[:：]/.test(old)) { c.mchk = REPAIR_V; return false; }
   c.mchk = REPAIR_V;
   const direct = _posMeaningLocal(c.word);
   const nw = direct || _formMeaningLocal(c.word); if (!nw || !/[:：]/.test(nw)) return false;
