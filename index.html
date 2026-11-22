@@ -346,6 +346,14 @@ body.dark .unit-chip{background:#3b2a5c;color:#d8b4fe}
 
 /* SR */
 .sr-row{display:flex;gap:7px}
+/* 内蔵辞書で調べる（iPhone・iPad だけ表示） */
+.lookup-bar{display:none;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
+.lookup-bar.show{display:flex}
+.lookup-word{font-weight:800;font-size:1.05rem;padding:4px 10px;border-radius:8px;background:var(--bg);border:1px dashed var(--border);
+  -webkit-user-select:text;user-select:text;-webkit-touch-callout:default;cursor:text}
+.lookup-btn{border:1.5px solid var(--border);background:var(--card-bg);color:var(--primary);border-radius:10px;padding:6px 12px;font-size:0.85rem;font-weight:700;cursor:pointer}
+.lookup-help{border:none;background:none;color:#60a5fa;font-size:0.8rem;text-decoration:underline;cursor:pointer;padding:2px}
+.card .word{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 .sr-btn{flex:1;padding:10px 3px;font-size:0.7rem;font-weight:700;border-radius:12px;border:2px solid transparent;transition:all .13s;line-height:1.5}
 .sr-a{background:#fee2e2;color:#dc2626;border-color:#fca5a5}
 .sr-h{background:#fef3c7;color:#b45309;border-color:#fcd34d}
@@ -658,6 +666,12 @@ textarea:focus{border-color:var(--accent);height:200px;box-shadow:0 0 0 3px rgba
           <div class="flip-hint" id="backHint">タップして戻る</div>
         </div>
       </div>
+    </div>
+
+    <div class="lookup-bar" id="lookupBar">
+      <span class="lookup-word" id="lookupWord"></span>
+      <button class="lookup-btn" onclick="lookupBuiltin(event)">📖 内蔵辞書で調べる</button>
+      <button class="lookup-help" onclick="lookupHelp(event)">使い方</button>
     </div>
 
     <div class="sr-row" id="srRow">
@@ -2329,6 +2343,7 @@ async function updateDueBadge(){
 async function renderCard(){
   updateProgress();flipped=false;
   document.getElementById('flashCard').classList.remove('is-flipped');
+  updateLookupBar();
   if(!deck.length){
     const msg=mode==='review'?'復習なし ✅':'単語なし';
     ['frontCloze','spellBox','backSub','spellResult'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
@@ -2477,10 +2492,45 @@ async function refetchCurrentCard(e){
 }
 
 /* FLIP / NAV */
+/* iPhone・iPad の内蔵辞書（長押し →「調べる」）を使いやすくする
+   ・Webアプリから内蔵辞書を直接開く仕組みは無いので、単語を選んだ状態にして「調べる」を押してもらう
+   ・答えが見えている時だけ表示（日→英・穴埋め・書く・聞き取りは、めくった後だけ） */
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+let _cardLongPress = false, _cardTouchT0 = 0;
+function updateLookupBar(){
+  const bar = document.getElementById('lookupBar'); if (!bar) return;
+  const c = currentCard && currentCard();
+  const show = !!(IS_IOS && c && c.word && (dir==='en2jp' || flipped));
+  bar.classList.toggle('show', show);
+  if (show) document.getElementById('lookupWord').textContent = c.word;
+}
+function lookupBuiltin(e){
+  if (e) e.stopPropagation();
+  const el = document.getElementById('lookupWord'); if (!el || !el.textContent) return;
+  const r = document.createRange(); r.selectNodeContents(el);
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  let first = false; try { first = !localStorage.getItem('tango_lookup_seen'); localStorage.setItem('tango_lookup_seen','1'); } catch(_){}
+  setStatus(first ? '青く選ばれた単語をタップ →「調べる」で内蔵辞書が開きます（英和の訳が出ない時は「使い方」を見てください）'
+                  : '青く選ばれた単語をタップ →「調べる」', first ? 7000 : 3500);
+}
+function lookupHelp(e){
+  if (e) e.stopPropagation();
+  alert('📖 内蔵辞書で調べる\n\n' +
+    '1. 「📖 内蔵辞書で調べる」を押すと、単語が青く選ばれます\n' +
+    '2. 青い単語をタップ → メニューの「調べる」を押します\n' +
+    '   （メニューに無い時は「＞」で次のメニューを表示）\n' +
+    '3. 下から辞書の画面が開きます\n\n' +
+    'カードの英単語を長押ししても選べます。\n\n' +
+    '■ 英和の訳が出ない時（最初に1回だけ）\n' +
+    '設定アプリ → 一般 → 辞書 →「ウィズダム英和辞典」と「ウィズダム和英辞典」にチェック');
+}
 function flip(){
+  if(_cardLongPress){ _cardLongPress=false; return; }   // 長押しで単語を選んだ時はめくらない
+  { const sel = window.getSelection && window.getSelection(); if (sel && String(sel).trim() && sel.anchorNode && document.getElementById('flashCard').contains(sel.anchorNode)) { sel.removeAllRanges(); return; } }
   if(!deck.length)return;flipped=!flipped;
   if(flipped && (dir==='spell'||dir==='listen')){ const r=document.getElementById('spellResult'); if(r.style.display==='none'){ const a=(document.getElementById('spellInput').value||'').trim(); if(a){ flipped=false; checkSpell(); return; } } }
   document.getElementById('flashCard').classList.toggle('is-flipped',flipped);
+  updateLookupBar();
   markStudied();
   // (3) jp2en: 裏面の英単語を発音（めくった時点のカードを即キャプチャ）
   if(flipped && dir!=='en2jp'){
@@ -3534,6 +3584,7 @@ function onCardTouchStart(e) {
   _touchStartX = t.clientX;
   _touchStartY = t.clientY;
   _touchMoved  = false;
+  _cardTouchT0 = Date.now(); _cardLongPress = false;
 }
 
 function onCardTouchMove(e) {
@@ -3547,6 +3598,8 @@ function onCardTouchEnd(e) {
   const adx = Math.abs(dx), ady = Math.abs(dy);
 
   if (_touchIgnore) return;
+  // 長押し（動かさずに0.45秒以上）は単語の選択（内蔵辞書の「調べる」用）。カードはめくらない
+  if (Date.now() - _cardTouchT0 > 450 && adx < 10 && ady < 10) { _cardLongPress = true; setTimeout(()=>{ _cardLongPress = false; }, 600); return; }
   // (6) 裏面で左右スワイプ → 評価（右: 😊簡単 / 左: 😓もう一度）
   if (flipped && adx >= SWIPE_THRESHOLD && adx > ady * SWIPE_RATIO) {
     e.preventDefault();
